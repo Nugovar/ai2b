@@ -11,11 +11,24 @@ import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
 
 export const runtime = "nodejs";
 
+// Give the function enough headroom for a slow model response + retries, so
+// Vercel doesn't kill it mid-flight (the default is only 10s, which a slow
+// response or a 429 retry can exceed -> surfaced as "connection failed").
+// Hobby supports up to 60s via this export; Pro up to 300s.
+export const maxDuration = 60;
+
 // Language instruction appended to the system prompt so replies + chips match
 // the user's selected language.
 const LANG_INSTRUCTION: Record<Lang, string> = {
   ka: "\n\nIMPORTANT: Respond ONLY in Georgian (ქართულად). The chips array must also be in Georgian.",
   en: "\n\nIMPORTANT: Respond ONLY in English. The chips array must also be in English.",
+};
+
+const DEFAULT_CONTROL: ChatControl = {
+  phase: "discovery",
+  slots: {},
+  showLeadForm: false,
+  chips: [],
 };
 
 export async function POST(req: NextRequest) {
@@ -33,47 +46,32 @@ export async function POST(req: NextRequest) {
     if (!apiKey) {
       console.error("[api/chat] OPENAI_API_KEY is not set.");
       return NextResponse.json<ChatApiResponse>(
-        {
-          reply: dict.chat.notConfigured,
-          control: { phase: "discovery", slots: {}, showLeadForm: false, chips: [] },
-        },
+        { reply: dict.chat.notConfigured, control: { ...DEFAULT_CONTROL } },
         { status: 200 }
       );
     }
 
-    const openai = new OpenAI({ apiKey });
+    // Let the SDK handle retries CORRECTLY: it only retries transient errors
+    // (408/409/429/5xx + connection/timeout), honors Retry-After, and uses
+    // exponential backoff. Per-attempt timeout keeps total within maxDuration.
+    const openai = new OpenAI({ apiKey, maxRetries: 2, timeout: 15_000 });
 
     const history = messages
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role, content: m.content }));
 
-    // Retry transient connection errors (the network here intercepts TLS and
-    // occasionally drops the request). Up to 3 attempts with a short backoff.
-    const params = {
-      model: "gpt-4o-mini" as const,
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       temperature: 0.6,
       // Force a single JSON object so `reply` + `chips` are always structured.
-      response_format: { type: "json_object" as const },
+      response_format: { type: "json_object" },
       messages: [
-        { role: "system" as const, content: SYSTEM_PROMPT + LANG_INSTRUCTION[lang] },
+        { role: "system", content: SYSTEM_PROMPT + LANG_INSTRUCTION[lang] },
         ...history,
       ],
-    };
-    let completion: Awaited<ReturnType<typeof openai.chat.completions.create>> | null = null;
-    let lastErr: unknown = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        completion = await openai.chat.completions.create(params);
-        lastErr = null;
-        break;
-      } catch (e) {
-        lastErr = e;
-        if (attempt < 2) await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
-      }
-    }
-    if (!completion) throw lastErr;
+    });
 
-    const raw = ("choices" in completion ? completion.choices[0]?.message?.content : "") ?? "";
+    const raw = completion.choices[0]?.message?.content ?? "";
 
     // Primary path: the whole response is a JSON object { reply, ...control }.
     let reply = "";
@@ -90,23 +88,61 @@ export async function POST(req: NextRequest) {
     }
 
     // Hard guard: the lead-capture form may ONLY appear in the conversion phase.
-    // Prevents the model from jumping to contact capture during discovery/advice.
     if (control.showLeadForm && control.phase !== "conversion") {
       control.showLeadForm = false;
     }
 
-    return NextResponse.json<ChatApiResponse>(
-      { reply: reply || dict.chat.errorConnection, control },
-      { status: 200 }
-    );
+    // The API call SUCCEEDED but the model returned no usable text. This is NOT
+    // a connection failure - log it distinctly and degrade gracefully.
+    if (!reply) {
+      console.warn(
+        `[api/chat] empty reply after parse (model returned no 'reply'). rawLen=${raw.length}`
+      );
+      reply = dict.chat.errorConnection;
+    }
+
+    return NextResponse.json<ChatApiResponse>({ reply, control }, { status: 200 });
   } catch (err) {
-    console.error("[api/chat] error:", err);
+    // Differentiate the failure so we can see WHY (rate limit vs timeout vs
+    // connection vs auth) instead of one opaque blob.
+    logChatError(err);
     return NextResponse.json<ChatApiResponse>(
-      {
-        reply: dict.chat.errorConnection,
-        control: { phase: "discovery", slots: {}, showLeadForm: false, chips: [] },
-      },
+      { reply: dict.chat.errorConnection, control: { ...DEFAULT_CONTROL } },
       { status: 200 }
     );
   }
+}
+
+// Structured, greppable error log. Classifies OpenAI SDK errors by status/name.
+function logChatError(err: unknown): void {
+  const e = err as {
+    name?: string;
+    status?: number;
+    code?: string | null;
+    type?: string;
+    message?: string;
+  };
+  const status = e?.status;
+  const name = e?.name;
+  const transient =
+    name === "APIConnectionError" ||
+    name === "APIConnectionTimeoutError" ||
+    status === 408 ||
+    status === 409 ||
+    status === 429 ||
+    (typeof status === "number" && status >= 500);
+
+  let kind = "unknown";
+  if (name === "APIConnectionTimeoutError") kind = "timeout";
+  else if (name === "APIConnectionError") kind = "connection";
+  else if (status === 429) kind = "rate_limit";
+  else if (status === 401) kind = "auth";
+  else if (status === 400) kind = "bad_request";
+  else if (typeof status === "number" && status >= 500) kind = "openai_5xx";
+
+  console.error(
+    `[api/chat] OpenAI call failed kind=${kind} transient=${transient} ` +
+      `name=${name ?? "n/a"} status=${status ?? "n/a"} code=${e?.code ?? "n/a"} ` +
+      `type=${e?.type ?? "n/a"} msg=${e?.message ?? "n/a"}`
+  );
 }
