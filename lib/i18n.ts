@@ -59,6 +59,8 @@ interface Dict {
     sendAria: string;
     openAria: string;
     closeAria: string;
+    expandAria: string;
+    collapseAria: string;
     minimizedLabel: string;
     leadPrompt: string;
     leadName: string;
@@ -200,6 +202,8 @@ const ka: Dict = {
     sendAria: "გაგზავნა",
     openAria: "ჩატის გახსნა",
     closeAria: "ჩატის დახურვა",
+    expandAria: "სრულ ეკრანზე გაშლა",
+    collapseAria: "სრული ეკრანიდან გამოსვლა",
     minimizedLabel: "ჩატი",
     leadPrompt: "დატოვეთ საკონტაქტო ინფორმაცია და ჩვენი ექსპერტი დაგიკავშირდებათ:",
     leadName: "სახელი",
@@ -372,6 +376,8 @@ const en: Dict = {
     sendAria: "Send",
     openAria: "Open chat",
     closeAria: "Close chat",
+    expandAria: "Expand to fullscreen",
+    collapseAria: "Exit fullscreen",
     minimizedLabel: "Chat",
     leadPrompt: "Leave your contact details and our expert will reach out:",
     leadName: "Name",
