@@ -1,0 +1,134 @@
+// Lead persistence with a graceful in-memory fallback.
+// If Supabase is configured, leads go to the `leads` table; otherwise they are
+// kept in a module-level array so the demo never crashes. A clear console
+// warning is logged when the fallback is used.
+import { getSupabaseAdmin, isSupabaseServerConfigured } from "@/lib/supabaseServer";
+import type { Lead } from "@/lib/types";
+
+export interface StoredLead extends Lead {
+  id: string;
+  created_at: string;
+  status: string;
+}
+
+export type LeadStatus = "new" | "in_progress" | "done";
+
+// In-memory store (resets on server restart - fine for a demo).
+// Backed by globalThis so the SAME array is shared across all server module
+// layers (route handlers vs. server components) and survives dev HMR. Without
+// this, a lead written by /api/lead might not be visible to the /admin page.
+const globalStore = globalThis as unknown as { __ai2bMemoryLeads?: StoredLead[] };
+const memoryLeads: StoredLead[] = (globalStore.__ai2bMemoryLeads ??= []);
+
+export async function saveLead(
+  lead: Lead
+): Promise<{ ok: boolean; id: string; storage: "supabase" | "memory" }> {
+  const admin = getSupabaseAdmin();
+
+  if (admin && isSupabaseServerConfigured) {
+    const { data, error } = await admin
+      .from("leads")
+      .insert({
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email,
+        business_type: lead.business_type ?? null,
+        summary: lead.summary ?? null,
+        slots: lead.slots ?? null,
+        advice: lead.advice ?? null,
+        conversation: lead.conversation ?? null,
+        category: lead.category ?? null,
+        required_skills: lead.required_skills ?? null,
+        ai_relevant: lead.ai_relevant ?? false,
+        status: "new",
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("[leadStore] Supabase insert failed, falling back to memory:", error.message);
+    } else {
+      return { ok: true, id: data.id as string, storage: "supabase" };
+    }
+  } else {
+    console.warn(
+      "[leadStore] Supabase not configured — saving lead to in-memory store (will not persist)."
+    );
+  }
+
+  // Fallback: in-memory.
+  const stored: StoredLead = {
+    ...lead,
+    id: `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    created_at: new Date().toISOString(),
+    status: "new",
+  };
+  memoryLeads.push(stored);
+  return { ok: true, id: stored.id, storage: "memory" };
+}
+
+// Exposed for a potential admin/debug view of in-memory leads.
+export function getMemoryLeads(): StoredLead[] {
+  return memoryLeads;
+}
+
+// List all leads, newest first. Reads from Supabase when configured, otherwise
+// from the in-memory fallback. Never throws.
+export async function listLeads(): Promise<{
+  leads: StoredLead[];
+  storage: "supabase" | "memory";
+}> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    const { data, error } = await admin
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("[leadStore] Supabase list failed, falling back to memory:", error.message);
+    } else {
+      return { leads: (data ?? []) as StoredLead[], storage: "supabase" };
+    }
+  }
+  // Fallback: in-memory, newest first.
+  return { leads: [...memoryLeads].reverse(), storage: "memory" };
+}
+
+// Delete a lead by id. Returns true on success. Supabase when configured,
+// otherwise the in-memory store. Admin-only (callers must verify the gate).
+export async function deleteLead(id: string): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    const { error } = await admin.from("leads").delete().eq("id", id);
+    if (error) {
+      console.error("[leadStore] Supabase delete failed:", error.message);
+      return false;
+    }
+    return true;
+  }
+  const idx = memoryLeads.findIndex((l) => l.id === id);
+  if (idx >= 0) {
+    memoryLeads.splice(idx, 1);
+    return true;
+  }
+  return false;
+}
+
+// Update a lead's status. Returns true on success.
+export async function updateLeadStatus(id: string, status: LeadStatus): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    const { error } = await admin.from("leads").update({ status }).eq("id", id);
+    if (error) {
+      console.error("[leadStore] Supabase status update failed:", error.message);
+      return false;
+    }
+    return true;
+  }
+  const lead = memoryLeads.find((l) => l.id === id);
+  if (lead) {
+    lead.status = status;
+    return true;
+  }
+  return false;
+}

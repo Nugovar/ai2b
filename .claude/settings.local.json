@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\User\\\\Desktop\\\\ai2b\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\User\\\\Desktop\\\\ai2b\\\\app\\\\api\\\\chat\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\User\\\\Desktop\\\\ai2b\\\\components\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\User\\\\Desktop\\\\ai2b\\\\lib\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\User\\\\Desktop\\\\ai2b\\\\public\")",
+      "PowerShell(\"Created\")",
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\User\\\\Desktop\\\\ai2b\"; if \\(Test-Path \".next\"\\) { Remove-Item -Recurse -Force \".next\" -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 800; \"ready, .next exists: $\\(Test-Path '.next'\\)\")",
+      "Bash(node -e \"console.log\\(require\\('@supabase/supabase-js/package.json'\\).version\\)\")",
+      "Bash(node scripts/diag-supabase.mjs)",
+      "Bash(node --input-type=module -e ' *)"
+    ]
+  }
+}
