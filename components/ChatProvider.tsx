@@ -41,6 +41,7 @@ interface AppContextValue {
   showLeadForm: boolean;
   loading: boolean;
   send: (text: string) => void;
+  editLastUserMessage: (text: string) => void;
   // lead capture
   lead: LeadForm;
   setLead: (l: LeadForm) => void;
@@ -143,11 +144,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }, 400);
   }
 
-  async function send(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
-
-    const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed }];
+  // Core turn: append the user text to `base`, call the API, append the reply.
+  async function runTurn(base: ChatMessage[], text: string) {
+    const nextMessages: ChatMessage[] = [...base, { role: "user", content: text }];
     setMessages(nextMessages);
     setLoading(true);
 
@@ -171,6 +170,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+    await runTurn(messages, trimmed);
+  }
+
+  // Edit the LAST user message and regenerate: drop that message and everything
+  // after it (the old bot reply), then resend the edited text from the same
+  // prior context. Lead form is closed so the flow restarts cleanly from there.
+  async function editLastUserMessage(newText: string) {
+    const trimmed = newText.trim();
+    if (!trimmed || loading) return;
+    let lastUserIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        lastUserIdx = i;
+        break;
+      }
+    }
+    if (lastUserIdx === -1) return;
+    setControl((prev) => ({ ...prev, showLeadForm: false }));
+    await runTurn(messages.slice(0, lastUserIdx), trimmed);
   }
 
   async function submitLead() {
@@ -230,6 +253,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     showLeadForm: control.showLeadForm && hasAdvised,
     loading,
     send,
+    editLastUserMessage,
     lead,
     setLead,
     leadSubmitting,

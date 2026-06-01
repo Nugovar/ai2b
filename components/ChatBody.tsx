@@ -26,6 +26,7 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
     showLeadForm,
     loading,
     send,
+    editLastUserMessage,
     lead,
     setLead,
     leadSubmitting,
@@ -37,6 +38,38 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
   const [canSend, setCanSend] = useState(false);
+
+  // Inline edit of the LAST user message.
+  const [editing, setEditing] = useState(false);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  const editComposing = useRef(false);
+
+  const lastUserIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") return i;
+    }
+    return -1;
+  })();
+
+  function startEdit() {
+    if (loading) return;
+    setEditing(true);
+  }
+  function saveEdit() {
+    const v = (editRef.current?.value ?? "").trim();
+    if (!v || loading) return;
+    setEditing(false);
+    editLastUserMessage(v);
+  }
+  function editKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey && !editComposing.current && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setEditing(false);
+    }
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -83,23 +116,74 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
         ref={scrollRef}
         className="scrollbar-thin flex-1 space-y-3 overflow-y-auto bg-gray-50 px-4 py-4"
       >
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`flex items-end gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            {m.role === "assistant" && <BotAvatar />}
+        {messages.map((m, i) => {
+          const isLastUser = i === lastUserIdx && m.role === "user";
+          const editable = isLastUser && !showLeadForm && !loading;
+
+          // Inline editor for the last user message.
+          if (isLastUser && editing) {
+            return (
+              <div key={i} className="flex justify-end">
+                <div className="w-full max-w-[90%] rounded-2xl border border-brand-red/40 bg-white p-2 shadow-sm">
+                  <textarea
+                    ref={editRef}
+                    rows={2}
+                    defaultValue={m.content}
+                    autoFocus
+                    onKeyDown={editKeyDown}
+                    onCompositionStart={() => (editComposing.current = true)}
+                    onCompositionEnd={() => (editComposing.current = false)}
+                    className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-brand-dark placeholder:text-gray-400 outline-none focus:border-brand-red focus:ring-1 focus:ring-brand-red"
+                  />
+                  <div className="mt-2 flex justify-end gap-2">
+                    <button
+                      onClick={() => setEditing(false)}
+                      className="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100"
+                    >
+                      {t.chat.editCancel}
+                    </button>
+                    <button
+                      onClick={saveEdit}
+                      className="rounded-lg bg-brand-red px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-red-700"
+                    >
+                      {t.chat.editSave}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return (
             <div
-              className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                m.role === "user"
-                  ? "rounded-br-sm bg-brand-red text-white"
-                  : "rounded-bl-sm bg-white text-brand-dark shadow-sm"
-              }`}
+              key={i}
+              className={`group flex items-end gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              {m.content}
+              {m.role === "assistant" && <BotAvatar />}
+              {editable && (
+                <button
+                  onClick={startEdit}
+                  aria-label={t.chat.editAria}
+                  title={t.chat.editAria}
+                  className="mb-1 shrink-0 rounded-md p-1 text-gray-400 opacity-100 transition-colors hover:text-brand-red sm:opacity-0 sm:group-hover:opacity-100"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.688-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Z" />
+                  </svg>
+                </button>
+              )}
+              <div
+                className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  m.role === "user"
+                    ? "rounded-br-sm bg-brand-red text-white"
+                    : "rounded-bl-sm bg-white text-brand-dark shadow-sm"
+                }`}
+              >
+                {m.content}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {loading && (
           <div className="flex items-end justify-start gap-2">
