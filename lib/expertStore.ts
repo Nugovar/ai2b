@@ -69,17 +69,20 @@ export async function listExperts(): Promise<{
 }> {
   const admin = getSupabaseAdmin();
   if (admin && isSupabaseServerConfigured) {
-    const { data, error } = await admin
-      .from("experts")
-      .select("*")
-      .order("overall_rating", { ascending: false });
-    if (error) {
-      console.error("[expertStore] Supabase list failed, falling back to seed:", error.message);
-    } else if (data && data.length > 0) {
-      return { experts: data as Expert[], storage: "supabase" };
-    } else {
+    try {
+      const { data, error } = await admin
+        .from("experts")
+        .select("*")
+        .order("overall_rating", { ascending: false });
+      if (error) throw new Error(error.message);
+      if (data && data.length > 0) return { experts: data as Expert[], storage: "supabase" };
       // configured but table empty (SQL not run yet) -> show fallback seed
       return { experts: FALLBACK_DESIGNERS, storage: "memory" };
+    } catch (e) {
+      console.error(
+        "[expertStore] DB UNREACHABLE listing experts -> showing SEED fallback. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
     }
   }
   return { experts: FALLBACK_DESIGNERS, storage: "memory" };

@@ -1,7 +1,13 @@
 // Server-side Supabase client. Uses the SECRET key (full access, bypasses RLS)
-// so it can write/read `leads`. NEVER import this into a client component.
-// Works with the new-format key (sb_secret_...). Falls back to the legacy
-// service_role var name if that's what's set.
+// so it can write/read `leads`/`experts`. NEVER import this into a client
+// component. Works with the new-format key (sb_secret_...); falls back to the
+// legacy service_role var name.
+//
+// Resilience: every request uses a hard timeout, so if the project is PAUSED or
+// unreachable the call fails fast instead of hanging (which would otherwise tie
+// up the serverless function and spin the lead form / admin). Callers catch the
+// failure and fall back to the in-memory store. The chat (OpenAI) does not use
+// this client at all, so a DB outage can never affect the conversation.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -11,10 +17,24 @@ const secretKey =
 
 export const isSupabaseServerConfigured = Boolean(url && secretKey);
 
+// Fail fast when the DB is paused/unreachable (DNS ENOTFOUND fails instantly,
+// but a half-up endpoint can hang on connect — this bounds it).
+const SUPABASE_TIMEOUT_MS = 6000;
+
+// fetch wrapper that aborts after SUPABASE_TIMEOUT_MS.
+const timeoutFetch: typeof fetch = (input, init) => {
+  const signal =
+    typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+      ? AbortSignal.timeout(SUPABASE_TIMEOUT_MS)
+      : undefined;
+  return fetch(input, { ...init, signal: init?.signal ?? signal });
+};
+
 // Returns a privileged client, or null if env vars are missing (demo fallback).
 export function getSupabaseAdmin(): SupabaseClient | null {
   if (!url || !secretKey) return null;
   return createClient(url, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: { fetch: timeoutFetch },
   });
 }

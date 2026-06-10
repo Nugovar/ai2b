@@ -26,33 +26,38 @@ export async function saveLead(
   const admin = getSupabaseAdmin();
 
   if (admin && isSupabaseServerConfigured) {
-    const { data, error } = await admin
-      .from("leads")
-      .insert({
-        name: lead.name,
-        phone: lead.phone,
-        email: lead.email,
-        business_type: lead.business_type ?? null,
-        summary: lead.summary ?? null,
-        slots: lead.slots ?? null,
-        advice: lead.advice ?? null,
-        conversation: lead.conversation ?? null,
-        category: lead.category ?? null,
-        required_skills: lead.required_skills ?? null,
-        ai_relevant: lead.ai_relevant ?? false,
-        status: "new",
-      })
-      .select("id")
-      .single();
+    try {
+      const { data, error } = await admin
+        .from("leads")
+        .insert({
+          name: lead.name,
+          phone: lead.phone,
+          email: lead.email,
+          business_type: lead.business_type ?? null,
+          summary: lead.summary ?? null,
+          slots: lead.slots ?? null,
+          advice: lead.advice ?? null,
+          conversation: lead.conversation ?? null,
+          category: lead.category ?? null,
+          required_skills: lead.required_skills ?? null,
+          ai_relevant: lead.ai_relevant ?? false,
+          status: "new",
+        })
+        .select("id")
+        .single();
 
-    if (error) {
-      console.error("[leadStore] Supabase insert failed, falling back to memory:", error.message);
-    } else {
+      if (error) throw new Error(error.message);
       return { ok: true, id: data.id as string, storage: "supabase" };
+    } catch (e) {
+      // DB paused/unreachable/error -> never lose the lead, fall back to memory.
+      console.error(
+        "[leadStore] DB UNREACHABLE saving lead -> IN-MEMORY fallback (will not persist). reason:",
+        e instanceof Error ? e.message : String(e)
+      );
     }
   } else {
     console.warn(
-      "[leadStore] Supabase not configured — saving lead to in-memory store (will not persist)."
+      "[leadStore] Supabase not configured -> saving lead to IN-MEMORY store (will not persist)."
     );
   }
 
@@ -80,14 +85,18 @@ export async function listLeads(): Promise<{
 }> {
   const admin = getSupabaseAdmin();
   if (admin && isSupabaseServerConfigured) {
-    const { data, error } = await admin
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("[leadStore] Supabase list failed, falling back to memory:", error.message);
-    } else {
+    try {
+      const { data, error } = await admin
+        .from("leads")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
       return { leads: (data ?? []) as StoredLead[], storage: "supabase" };
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE listing leads -> showing IN-MEMORY fallback. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
     }
   }
   // Fallback: in-memory, newest first.
@@ -99,12 +108,17 @@ export async function listLeads(): Promise<{
 export async function deleteLead(id: string): Promise<boolean> {
   const admin = getSupabaseAdmin();
   if (admin && isSupabaseServerConfigured) {
-    const { error } = await admin.from("leads").delete().eq("id", id);
-    if (error) {
-      console.error("[leadStore] Supabase delete failed:", error.message);
+    try {
+      const { error } = await admin.from("leads").delete().eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE deleting lead. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
       return false;
     }
-    return true;
   }
   const idx = memoryLeads.findIndex((l) => l.id === id);
   if (idx >= 0) {
@@ -118,12 +132,17 @@ export async function deleteLead(id: string): Promise<boolean> {
 export async function updateLeadStatus(id: string, status: LeadStatus): Promise<boolean> {
   const admin = getSupabaseAdmin();
   if (admin && isSupabaseServerConfigured) {
-    const { error } = await admin.from("leads").update({ status }).eq("id", id);
-    if (error) {
-      console.error("[leadStore] Supabase status update failed:", error.message);
+    try {
+      const { error } = await admin.from("leads").update({ status }).eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE updating status. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
       return false;
     }
-    return true;
   }
   const lead = memoryLeads.find((l) => l.id === id);
   if (lead) {
