@@ -1,6 +1,7 @@
 "use client";
 
 import { useApp } from "@/components/ChatProvider";
+import { MARKETING_ONLY } from "@/lib/config";
 
 // Icon paths align by index with the 5 service categories in the i18n dict:
 // Marketing, Development, Legal, Design/Branding, Business consulting.
@@ -25,24 +26,47 @@ export default function Services() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-extrabold tracking-tight text-brand-dark sm:text-4xl">{t.services.title}</h2>
-          <p className="mt-4 text-lg text-gray-600">{t.services.subtitle}</p>
+          <p className="mt-4 text-lg text-gray-600">
+            {MARKETING_ONLY ? t.services.subtitleMarketing : t.services.subtitle}
+          </p>
         </div>
 
         <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {t.services.items.map((service, i) => (
-            <div
-              key={i}
-              className="group rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
-            >
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-red/10 text-brand-red transition-colors group-hover:bg-brand-red group-hover:text-white">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6">
-                  <path strokeLinecap="round" strokeLinejoin="round" d={ICONS[i]} />
-                </svg>
+          {t.services.items.map((service, i) => {
+            // Marketing is index 0. When MARKETING_ONLY, the other categories are
+            // shown but clearly marked "coming soon" (dimmed, non-interactive).
+            const soon = MARKETING_ONLY && i !== 0;
+            const active = MARKETING_ONLY && i === 0;
+            return (
+              <div
+                key={i}
+                className={`group relative rounded-2xl border bg-white p-6 shadow-sm transition-all ${
+                  soon
+                    ? "border-gray-100 opacity-60"
+                    : "border-gray-100 hover:-translate-y-1 hover:shadow-lg"
+                } ${active ? "ring-2 ring-brand-red/30" : ""}`}
+              >
+                {soon && (
+                  <span className="absolute right-3 top-3 rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                    {t.services.comingSoon}
+                  </span>
+                )}
+                <div
+                  className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl transition-colors ${
+                    soon
+                      ? "bg-gray-100 text-gray-400"
+                      : "bg-brand-red/10 text-brand-red group-hover:bg-brand-red group-hover:text-white"
+                  }`}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d={ICONS[i]} />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-bold text-brand-dark">{service.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600">{service.description}</p>
               </div>
-              <h3 className="text-lg font-bold text-brand-dark">{service.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600">{service.description}</p>
-            </div>
-          ))}
+            );
+          })}
 
           {/* CTA card */}
           <div className="flex flex-col justify-center rounded-2xl bg-brand-dark p-6 text-white shadow-sm">

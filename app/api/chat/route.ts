@@ -7,6 +7,7 @@ import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import { parseControl, normalizeControl } from "@/lib/parseControl";
 import { getDict, type Lang } from "@/lib/i18n";
+import { MARKETING_ONLY } from "@/lib/config";
 import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -23,6 +24,18 @@ const LANG_INSTRUCTION: Record<Lang, string> = {
   ka: "\n\nIMPORTANT: Respond ONLY in Georgian (ქართულად). The chips array must also be in Georgian.",
   en: "\n\nIMPORTANT: Respond ONLY in English. The chips array must also be in English.",
 };
+
+// TEMPORARY marketing-only scope (toggled by MARKETING_ONLY in lib/config.ts).
+// Soft restriction: focus on marketing; politely defer other needs as "coming
+// soon" and steer back to marketing. Other categories' logic stays intact.
+const MARKETING_SCOPE =
+  "\n\n## ფოკუსი: მხოლოდ მარკეტინგი (ამჟამად)\n" +
+  "ამ ეტაპზე AI2Business ფოკუსირებულია მხოლოდ მარკეტინგზე. დაეხმარე მხოლოდ მარკეტინგულ თემებში: " +
+  "სოციალური ქსელების მართვა, რეკლამა (Meta/Google), კონტენტი/რეელსები, მარკეტინგ-სტრატეგია, ბრენდინგი/პოზიციონირება, სარეკლამო კამპანიები. " +
+  "თუ მომხმარებელი ითხოვს არა-მარკეტინგულ საჭიროებას (იურიდიული, დეველოპმენტი/ვებსაიტი, წმინდა დიზაინი მარკეტინგთან კავშირის გარეშე, ბიზნეს-კონსალტინგი), " +
+  "თბილად და მოკლედ უთხარი, რომ AI2Business ამჟამად მარკეტინგზეა ფოკუსირებული და ის მიმართულებები მალე დაემატება, შემდეგ კი დააბრუნე საუბარი იმაზე, " +
+  "თუ როგორ შეგიძლია დაეხმარო მარკეტინგში. category ასეთ შემთხვევებში დააყენე \"მარკეტინგი\". " +
+  "შეინარჩუნე იგივე ლოგიკა: ჭკვიანი რელევანტური კითხვები -> მორგებული რჩევა -> ექსპერტის შეთავაზება -> ლიდის აღება.";
 
 const DEFAULT_CONTROL: ChatControl = {
   phase: "discovery",
@@ -66,7 +79,10 @@ export async function POST(req: NextRequest) {
       // Force a single JSON object so `reply` + `chips` are always structured.
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT + LANG_INSTRUCTION[lang] },
+        {
+          role: "system",
+          content: SYSTEM_PROMPT + LANG_INSTRUCTION[lang] + (MARKETING_ONLY ? MARKETING_SCOPE : ""),
+        },
         ...history,
       ],
     });

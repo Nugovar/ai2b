@@ -10,7 +10,15 @@ import {
 } from "react";
 import { DEFAULT_LANG, getDict, type Lang } from "@/lib/i18n";
 import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
+import { MARKETING_ONLY } from "@/lib/config";
 import ChatWidget from "@/components/ChatWidget";
+
+// Initial quick-reply chips: marketing sub-topics when MARKETING_ONLY, else the
+// full 5 category chips. (See lib/config.ts to flip back.)
+function initialChipsFor(lang: Lang): string[] {
+  const d = getDict(lang);
+  return MARKETING_ONLY ? d.chat.marketingChips : d.chat.initialChips;
+}
 
 const LANG_STORAGE_KEY = "ai2b_lang";
 // Shared id for the embedded chat's input, used by scrollToChat() to focus it.
@@ -76,7 +84,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     phase: "discovery",
     slots: {},
     showLeadForm: false,
-    chips: getDict(DEFAULT_LANG).chat.initialChips,
+    chips: initialChipsFor(DEFAULT_LANG),
   });
   const [loading, setLoading] = useState(false);
 
@@ -113,7 +121,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       phase: "discovery",
       slots: {},
       showLeadForm: false,
-      chips: d.chat.initialChips,
+      chips: initialChipsFor(next),
     });
     setLead({ name: "", phone: "", email: "" });
     setLeadError(null);

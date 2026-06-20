@@ -2,6 +2,7 @@
 
 import { useApp } from "@/components/ChatProvider";
 import EmbeddedChat from "@/components/EmbeddedChat";
+import { MARKETING_ONLY } from "@/lib/config";
 
 export default function Hero() {
   const { t, scrollToChat } = useApp();
@@ -19,7 +20,7 @@ export default function Hero() {
         {/* Intro — centered */}
         <div className="mx-auto max-w-2xl text-center">
           <span className="mb-5 inline-block rounded-full border border-brand-red/40 bg-brand-red/10 px-4 py-1.5 text-sm font-medium text-brand-red opacity-0 animate-fade-in">
-            {t.hero.badge}
+            {MARKETING_ONLY ? t.hero.badgeMarketing : t.hero.badge}
           </span>
 
           <h1 className="text-balance text-4xl font-extrabold leading-tight tracking-tight opacity-0 animate-fade-in-up sm:text-5xl">

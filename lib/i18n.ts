@@ -22,6 +22,7 @@ interface Dict {
     subtitle: string;
     ctaPrimary: string;
     ctaSecondary: string;
+    badgeMarketing: string;
   };
   how: {
     title: string;
@@ -31,6 +32,8 @@ interface Dict {
   services: {
     title: string;
     subtitle: string;
+    subtitleMarketing: string;
+    comingSoon: string;
     items: { title: string; description: string }[];
     ctaTitle: string;
     ctaText: string;
@@ -55,6 +58,7 @@ interface Dict {
     botRole: string;
     opening: string;
     initialChips: string[];
+    marketingChips: string[];
     inputPlaceholder: string;
     sendAria: string;
     openAria: string;
@@ -141,6 +145,7 @@ const ka: Dict = {
       "ხელოვნური ინტელექტი აანალიზებს და ასრულებს დავალებებს, ხოლო რთულ შემთხვევებში ერთვება ცოცხალი ექსპერტი. შენთვის მორგებული გადაწყვეტა, სწრაფად.",
     ctaPrimary: "აღწერე შენი საჭიროება",
     ctaSecondary: "როგორ მუშაობს",
+    badgeMarketing: "ქართული AI მარკეტინგის პლატფორმა",
   },
   how: {
     title: "როგორ მუშაობს",
@@ -166,6 +171,8 @@ const ka: Dict = {
   services: {
     title: "სერვისები",
     subtitle: "ხუთი ძირითადი მიმართულება, ერთ სივრცეში. აღწერე საჭიროება და მოვძებნით შესაბამის ექსპერტს.",
+    subtitleMarketing: "ამჟამად ფოკუსირებული ვართ მარკეტინგზე. დანარჩენი მიმართულებები მალე დაემატება.",
+    comingSoon: "მალე",
     items: [
       { title: "მარკეტინგი", description: "ციფრული რეკლამა, სოციალური ქსელები, კონტენტი და რეელსები. სტრატეგია, რომელიც ზრდის გაყიდვებს." },
       { title: "დეველოპმენტი", description: "ვებსაიტები, ლენდინგ გვერდები, ჩატბოტები და ბიზნეს-პროცესების ავტომატიზაცია." },
@@ -201,6 +208,13 @@ const ka: Dict = {
     opening:
       "გამარჯობა! 👋 მოკლედ აღწერეთ რა გჭირდებათ ან რა გამოწვევის წინაშე ხართ. დაგისვამთ რამდენიმე კითხვას და შემოგთავაზებთ კონკრეტულ გადაწყვეტას.",
     initialChips: ["მარკეტინგი", "დეველოპმენტი", "იურიდიული", "დიზაინი / ბრენდინგი", "ბიზნეს-კონსალტინგი"],
+    marketingChips: [
+      "სოციალური ქსელების მართვა",
+      "რეკლამა (Meta / Google)",
+      "კონტენტი / რეელსები",
+      "მარკეტინგ-სტრატეგია",
+      "ბრენდინგი / პოზიციონირება",
+    ],
     inputPlaceholder: "დაწერეთ შეტყობინება...",
     sendAria: "გაგზავნა",
     openAria: "ჩატის გახსნა",
@@ -318,6 +332,7 @@ const en: Dict = {
       "AI analyzes and executes tasks, and a human expert steps in on the tricky ones. A solution tailored to you, fast.",
     ctaPrimary: "Describe your need",
     ctaSecondary: "How it works",
+    badgeMarketing: "Georgian AI marketing platform",
   },
   how: {
     title: "How it works",
@@ -343,6 +358,8 @@ const en: Dict = {
   services: {
     title: "Services",
     subtitle: "Five core directions in one place. Describe your need and we'll match you with the right expert.",
+    subtitleMarketing: "We're focused on marketing right now. The other directions are coming soon.",
+    comingSoon: "Coming soon",
     items: [
       { title: "Marketing", description: "Digital ads, social media, content and reels. A strategy that grows your sales." },
       { title: "Development", description: "Websites, landing pages, chatbots and business process automation." },
@@ -378,6 +395,13 @@ const en: Dict = {
     opening:
       "Hi! 👋 Briefly describe what you need or what challenge you're facing. I'll ask a few questions and offer you a concrete solution.",
     initialChips: ["Marketing", "Development", "Legal", "Design / Branding", "Business consulting"],
+    marketingChips: [
+      "Social media management",
+      "Ads (Meta / Google)",
+      "Content / Reels",
+      "Marketing strategy",
+      "Branding / Positioning",
+    ],
     inputPlaceholder: "Type a message...",
     sendAria: "Send",
     openAria: "Open chat",
