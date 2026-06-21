@@ -9,7 +9,10 @@ import { parseControl, normalizeControl } from "@/lib/parseControl";
 import { getDict, type Lang } from "@/lib/i18n";
 import { MARKETING_ONLY } from "@/lib/config";
 import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
-import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type {
+  ChatCompletionContentPart,
+  ChatCompletionMessageParam,
+} from "openai/resources/chat/completions";
 
 export const runtime = "nodejs";
 
@@ -45,28 +48,52 @@ const DEFAULT_CONTROL: ChatControl = {
   chips: [],
 };
 
+// Fetch a remote file and return it as a base64 data URL. Data URLs (the no-
+// Supabase fallback) are returned as-is, since Node's fetch can't open them.
+async function toDataUrl(url: string, type: string): Promise<string> {
+  if (url.startsWith("data:")) return url;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`fetch ${res.status}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  return `data:${type};base64,${buf.toString("base64")}`;
+}
+
 // Convert one stored chat message into the OpenAI message shape. User messages
-// with attachments become MULTIMODAL: images are passed as image_url parts (the
-// model can SEE them - gpt-4o-mini has vision), while non-image files (PDF/doc)
-// can't be seen, so we just append a "[file: name]" note so the model knows one
-// was shared. Image URLs (not base64) keep the history light across turns.
-function toOpenAIMessage(m: ChatMessage): ChatCompletionMessageParam {
+// with attachments become MULTIMODAL:
+//   - images  -> image_url parts (the model SEES them; gpt-4o-mini has vision).
+//   - PDFs     -> a `file` part with the file bytes (the model READS them), but
+//                 ONLY for the most recent user message to bound latency/cost;
+//                 older PDFs collapse to a "[file: name]" note.
+// Images stay as URLs (cheap) across all turns; PDF bytes are fetched server-
+// side, so the inbound /api/chat body never carries file bytes.
+async function toOpenAIMessage(m: ChatMessage, isLatest: boolean): Promise<ChatCompletionMessageParam> {
   const atts = m.role === "user" ? m.attachments ?? [] : [];
   if (atts.length === 0) {
     return { role: m.role, content: m.content } as ChatCompletionMessageParam;
   }
 
-  const fileNotes = atts
-    .filter((a) => !a.isImage)
-    .map((a) => `\n[ფაილი / file: ${a.name}]`)
-    .join("");
+  const parts: ChatCompletionContentPart[] = [];
+  const noteNames: string[] = [];
 
-  const parts: ChatCompletionMessageParam["content"] = [
-    { type: "text", text: `${m.content}${fileNotes}` },
-    ...atts
-      .filter((a) => a.isImage)
-      .map((a) => ({ type: "image_url" as const, image_url: { url: a.url } })),
-  ];
+  for (const a of atts) {
+    if (a.isImage) {
+      parts.push({ type: "image_url", image_url: { url: a.url } });
+    } else if (isLatest && a.type === "application/pdf") {
+      try {
+        const fileData = await toDataUrl(a.url, a.type);
+        parts.push({ type: "file", file: { filename: a.name, file_data: fileData } });
+      } catch (e) {
+        console.warn(`[api/chat] could not load file ${a.name}:`, e instanceof Error ? e.message : e);
+        noteNames.push(a.name);
+      }
+    } else {
+      // Older attachment, or an unreadable type: just name it.
+      noteNames.push(a.name);
+    }
+  }
+
+  const notes = noteNames.map((n) => `\n[ფაილი / file: ${n}]`).join("");
+  parts.unshift({ type: "text", text: `${m.content}${notes}` });
 
   return { role: "user", content: parts };
 }
@@ -96,9 +123,18 @@ export async function POST(req: NextRequest) {
     // exponential backoff. Per-attempt timeout keeps total within maxDuration.
     const openai = new OpenAI({ apiKey, maxRetries: 2, timeout: 15_000 });
 
-    const history: ChatCompletionMessageParam[] = messages
-      .filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => toOpenAIMessage(m));
+    const convo = messages.filter((m) => m.role === "user" || m.role === "assistant");
+    // Index of the last user message - only it gets full PDF file content.
+    let lastUserIdx = -1;
+    for (let i = convo.length - 1; i >= 0; i--) {
+      if (convo[i].role === "user") {
+        lastUserIdx = i;
+        break;
+      }
+    }
+    const history: ChatCompletionMessageParam[] = await Promise.all(
+      convo.map((m, i) => toOpenAIMessage(m, i === lastUserIdx))
+    );
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",

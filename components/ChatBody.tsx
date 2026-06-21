@@ -3,11 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp, EMBEDDED_INPUT_ID } from "@/components/ChatProvider";
 import type { Attachment } from "@/lib/types";
-
-// Attachment limits - keep in sync with app/api/upload/route.ts.
-const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
-const MAX_BYTES = 5 * 1024 * 1024;
-const MAX_FILES = 4;
+import { ACCEPT_ATTR, MAX_BYTES, MAX_FILES, isAllowedType } from "@/lib/uploadLimits";
 
 // Small circular bot avatar shown beside assistant messages.
 function BotAvatar() {
@@ -102,7 +98,7 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
     setFiles((prev) => {
       const next = [...prev];
       for (const f of Array.from(selected)) {
-        if (!ALLOWED_TYPES.includes(f.type)) {
+        if (!isAllowedType(f.type)) {
           setAttachError(t.chat.attachBadType);
           continue;
         }
@@ -396,7 +392,7 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
               type="file"
               hidden
               multiple
-              accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+              accept={ACCEPT_ATTR}
               onChange={(e) => addFiles(e.target.files)}
             />
             <button

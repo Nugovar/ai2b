@@ -1,16 +1,18 @@
 -- ============================================================================
 -- AI2Business — chat uploads (files + photos)
 --
--- Run this in the Supabase SQL editor AFTER experts.sql. It:
---   1) Creates a PUBLIC Storage bucket `chat-uploads` for files/photos that
---      users attach in the chat. Public-read is required so the OpenAI vision
---      model can fetch image URLs; writes happen only via the server SECRET key
---      (lib/storageStore.ts), which bypasses RLS.
+-- The app AUTO-CREATES the `chat-uploads` bucket on first upload (server-side,
+-- via the SECRET key), so step 1 below is usually optional. Run this in the
+-- Supabase SQL editor mainly for step 2:
+--   1) (optional) Pre-create the PUBLIC Storage bucket `chat-uploads`. Public-
+--      read is required so OpenAI can fetch image URLs. Uploads use short-lived
+--      signed upload URLs minted by the server (client uploads directly).
 --   2) Adds an `attachments` jsonb column to `leads` so each captured lead
---      remembers what the user shared (shown in the admin panel).
+--      remembers what the user shared (shown in the admin panel). REQUIRED for
+--      admin persistence - there is no auto-migration for table columns.
 --
--- Without this, the app still works: uploads fall back to inline base64
--- data-URLs (vision works, but files are NOT persisted to the admin panel).
+-- Without step 2 the chat still works (vision + PDF reading); only the admin
+-- panel won't list a lead's files.
 -- ============================================================================
 
 -- 1) Public bucket for chat attachments. Idempotent.

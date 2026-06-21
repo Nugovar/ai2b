@@ -5,20 +5,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadChatFile } from "@/lib/storageStore";
 import { getDict, type Lang } from "@/lib/i18n";
+import { MAX_BYTES, MAX_FILES, isAllowedType } from "@/lib/uploadLimits";
 import type { Attachment } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-// Keep these in sync with the client-side checks in components/ChatBody.tsx.
-const MAX_BYTES = 5 * 1024 * 1024; // 5MB per file
-const MAX_FILES = 4;
-const ALLOWED = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-  "application/pdf",
-]);
+// Base64 fallback path (no Supabase). Note: on Vercel the multipart body is
+// still capped at ~4.5MB regardless of MAX_BYTES; the primary flow is the
+// direct signed upload in /api/upload-url. Limits are shared in uploadLimits.ts.
 
 export async function POST(req: NextRequest) {
   // Language only drives the error copy; default to Georgian.
@@ -38,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     for (const f of files) {
-      if (!ALLOWED.has(f.type)) {
+      if (!isAllowedType(f.type)) {
         return NextResponse.json({ ok: false, error: t.attachBadType }, { status: 400 });
       }
       if (f.size > MAX_BYTES) {

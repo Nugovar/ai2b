@@ -11,6 +11,7 @@ import {
 import { DEFAULT_LANG, getDict, type Lang } from "@/lib/i18n";
 import type { Attachment, ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
 import { MARKETING_ONLY } from "@/lib/config";
+import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import ChatWidget from "@/components/ChatWidget";
 
 // Initial quick-reply chips: marketing sub-topics when MARKETING_ONLY, else the
@@ -152,18 +153,66 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }, 400);
   }
 
-  // Upload any attached files first; returns the persisted attachment list (URLs
-  // or base64 data-URL fallbacks). Throws on failure so the caller can surface a
-  // localized error instead of sending a half-formed turn.
+  // Upload attached files and return their attachment records. Primary path:
+  // mint signed URLs and upload DIRECTLY to Supabase from the browser (bypasses
+  // Vercel's ~4.5MB body limit, so large files work). Fallback path (no
+  // Supabase): POST the bytes to /api/upload for a base64 data-URL. Throws on
+  // failure so the caller can surface a localized error.
   async function uploadFiles(files: File[]): Promise<Attachment[]> {
+    const res = await fetch(`/api/upload-url?lang=${lang}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        files: files.map((f) => ({ name: f.name, type: f.type, size: f.size })),
+      }),
+    });
+    const data = (await res.json()) as {
+      ok: boolean;
+      mode?: "signed" | "fallback";
+      uploads?: {
+        path: string;
+        token: string;
+        publicUrl: string;
+        name: string;
+        type: string;
+        size: number;
+        isImage: boolean;
+      }[];
+      error?: string;
+    };
+    if (!data.ok) throw new Error(data.error ?? t.chat.attachUploadError);
+
+    // Direct-to-Supabase signed upload.
+    if (data.mode === "signed" && data.uploads) {
+      const sb = getSupabaseBrowser();
+      if (!sb) throw new Error(t.chat.attachUploadError);
+      const out: Attachment[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const u = data.uploads[i];
+        const { error } = await sb.storage
+          .from("chat-uploads")
+          .uploadToSignedUrl(u.path, u.token, files[i], { contentType: files[i].type });
+        if (error) throw new Error(t.chat.attachUploadError);
+        out.push({
+          url: u.publicUrl,
+          name: u.name,
+          type: u.type,
+          size: u.size,
+          isImage: u.isImage,
+        });
+      }
+      return out;
+    }
+
+    // Fallback: base64 via the server (small files; demo without Supabase).
     const form = new FormData();
     files.forEach((f) => form.append("file", f));
-    const res = await fetch(`/api/upload?lang=${lang}`, { method: "POST", body: form });
-    const data = (await res.json()) as { ok: boolean; attachments?: Attachment[]; error?: string };
-    if (!data.ok || !data.attachments) {
-      throw new Error(data.error ?? t.chat.attachUploadError);
+    const fb = await fetch(`/api/upload?lang=${lang}`, { method: "POST", body: form });
+    const fbData = (await fb.json()) as { ok: boolean; attachments?: Attachment[]; error?: string };
+    if (!fbData.ok || !fbData.attachments) {
+      throw new Error(fbData.error ?? t.chat.attachUploadError);
     }
-    return data.attachments;
+    return fbData.attachments;
   }
 
   // Core turn: upload any files, append the user text + attachments to `base`,
