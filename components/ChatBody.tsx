@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp, EMBEDDED_INPUT_ID } from "@/components/ChatProvider";
+import type { Attachment } from "@/lib/types";
+
+// Attachment limits - keep in sync with app/api/upload/route.ts.
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "application/pdf"];
+const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_FILES = 4;
 
 // Small circular bot avatar shown beside assistant messages.
 function BotAvatar() {
@@ -10,6 +16,41 @@ function BotAvatar() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo2.png" alt="" className="h-full w-full object-cover" width={28} height={28} />
     </span>
+  );
+}
+
+// Renders the files/photos attached to a sent message inside its bubble.
+// Images show as clickable thumbnails; other files as a labeled chip.
+function MessageAttachments({ attachments }: { attachments: Attachment[] }) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {attachments.map((a, i) =>
+        a.isImage ? (
+          <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" title={a.name}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={a.url}
+              alt={a.name}
+              className="h-20 w-20 rounded-lg object-cover ring-1 ring-black/10"
+            />
+          </a>
+        ) : (
+          <a
+            key={i}
+            href={a.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={a.name}
+            className="flex max-w-[12rem] items-center gap-1.5 rounded-lg bg-black/10 px-2 py-1.5 text-xs"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" />
+            </svg>
+            <span className="truncate">{a.name}</span>
+          </a>
+        )
+      )}
+    </div>
   );
 }
 
@@ -38,6 +79,51 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
   const [canSend, setCanSend] = useState(false);
+
+  // Pending attachments (files/photos picked but not yet sent). Kept in React
+  // state separate from the uncontrolled textarea so they never interfere with
+  // IME composition. The hidden <input type="file"> is triggered by the clip.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [attachError, setAttachError] = useState<string | null>(null);
+
+  // Object URLs for image previews; revoked when the file set changes/unmounts.
+  const previews = useMemo(
+    () => files.map((f) => ({ name: f.name, url: f.type.startsWith("image/") ? URL.createObjectURL(f) : null })),
+    [files]
+  );
+  useEffect(() => {
+    return () => previews.forEach((p) => p.url && URL.revokeObjectURL(p.url));
+  }, [previews]);
+
+  function addFiles(selected: FileList | null) {
+    if (!selected || selected.length === 0) return;
+    setAttachError(null);
+    setFiles((prev) => {
+      const next = [...prev];
+      for (const f of Array.from(selected)) {
+        if (!ALLOWED_TYPES.includes(f.type)) {
+          setAttachError(t.chat.attachBadType);
+          continue;
+        }
+        if (f.size > MAX_BYTES) {
+          setAttachError(t.chat.attachTooLarge);
+          continue;
+        }
+        if (next.length >= MAX_FILES) {
+          setAttachError(t.chat.attachTooMany);
+          break;
+        }
+        next.push(f);
+      }
+      return next;
+    });
+  }
+
+  function removeFile(idx: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+    setAttachError(null);
+  }
 
   // Inline edit of the LAST user message.
   const [editing, setEditing] = useState(false);
@@ -82,10 +168,13 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
   function doSend() {
     const el = inputRef.current;
     const text = (el?.value ?? "").trim();
-    if (!text || loading) return;
-    send(text);
+    if ((!text && files.length === 0) || loading) return;
+    send(text, files.length > 0 ? files : undefined);
     if (el) el.value = "";
+    setFiles([]);
+    setAttachError(null);
     setCanSend(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function sendChip(text: string) {
@@ -180,6 +269,9 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
                 }`}
               >
                 {m.content}
+                {m.attachments && m.attachments.length > 0 && (
+                  <MessageAttachments attachments={m.attachments} />
+                )}
               </div>
             </div>
           );
@@ -259,7 +351,66 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
             </div>
           )}
 
+          {/* Pending attachment previews + any validation error */}
+          {(files.length > 0 || attachError) && (
+            <div className="px-3 pt-3">
+              {files.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {previews.map((p, i) => (
+                    <div
+                      key={i}
+                      className="group relative flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 p-1 pr-6 text-xs text-brand-dark"
+                    >
+                      {p.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.url} alt={p.name} className="h-9 w-9 rounded object-cover" />
+                      ) : (
+                        <span className="flex h-9 w-9 items-center justify-center rounded bg-brand-red/10 text-brand-red">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" />
+                          </svg>
+                        </span>
+                      )}
+                      <span className="max-w-[7rem] truncate">{p.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        aria-label={t.chat.attachRemoveAria}
+                        className="absolute right-1 top-1 rounded p-0.5 text-gray-400 transition-colors hover:text-brand-red"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attachError && <p className="mt-1 text-xs text-brand-red">{attachError}</p>}
+            </div>
+          )}
+
           <div className="flex items-end gap-2 px-3 py-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              hidden
+              multiple
+              accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
+              onChange={(e) => addFiles(e.target.files)}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || files.length >= MAX_FILES}
+              aria-label={t.chat.attachAria}
+              title={t.chat.attachAria}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-300 text-gray-500 transition-colors hover:border-brand-red hover:text-brand-red disabled:opacity-40"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+            </button>
             <textarea
               id={embedded ? EMBEDDED_INPUT_ID : undefined}
               ref={inputRef}
@@ -278,7 +429,7 @@ export default function ChatBody({ embedded = false }: { embedded?: boolean }) {
             />
             <button
               onClick={doSend}
-              disabled={!canSend || loading}
+              disabled={(!canSend && files.length === 0) || loading}
               aria-label={t.chat.sendAria}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-red text-white transition-colors hover:bg-red-700 disabled:opacity-40"
             >

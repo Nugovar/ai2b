@@ -41,6 +41,7 @@ export async function saveLead(
           category: lead.category ?? null,
           required_skills: lead.required_skills ?? null,
           ai_relevant: lead.ai_relevant ?? false,
+          attachments: lead.attachments ?? null,
           status: "new",
         })
         .select("id")

@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       category: body.category,
       required_skills: body.required_skills,
       ai_relevant: body.ai_relevant,
+      attachments: body.attachments,
     });
 
     return NextResponse.json({ ok: true, id: result.id, storage: result.storage }, { status: 200 });

@@ -9,6 +9,7 @@ import { parseControl, normalizeControl } from "@/lib/parseControl";
 import { getDict, type Lang } from "@/lib/i18n";
 import { MARKETING_ONLY } from "@/lib/config";
 import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 export const runtime = "nodejs";
 
@@ -44,6 +45,32 @@ const DEFAULT_CONTROL: ChatControl = {
   chips: [],
 };
 
+// Convert one stored chat message into the OpenAI message shape. User messages
+// with attachments become MULTIMODAL: images are passed as image_url parts (the
+// model can SEE them - gpt-4o-mini has vision), while non-image files (PDF/doc)
+// can't be seen, so we just append a "[file: name]" note so the model knows one
+// was shared. Image URLs (not base64) keep the history light across turns.
+function toOpenAIMessage(m: ChatMessage): ChatCompletionMessageParam {
+  const atts = m.role === "user" ? m.attachments ?? [] : [];
+  if (atts.length === 0) {
+    return { role: m.role, content: m.content } as ChatCompletionMessageParam;
+  }
+
+  const fileNotes = atts
+    .filter((a) => !a.isImage)
+    .map((a) => `\n[ფაილი / file: ${a.name}]`)
+    .join("");
+
+  const parts: ChatCompletionMessageParam["content"] = [
+    { type: "text", text: `${m.content}${fileNotes}` },
+    ...atts
+      .filter((a) => a.isImage)
+      .map((a) => ({ type: "image_url" as const, image_url: { url: a.url } })),
+  ];
+
+  return { role: "user", content: parts };
+}
+
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     messages?: ChatMessage[];
@@ -69,9 +96,9 @@ export async function POST(req: NextRequest) {
     // exponential backoff. Per-attempt timeout keeps total within maxDuration.
     const openai = new OpenAI({ apiKey, maxRetries: 2, timeout: 15_000 });
 
-    const history = messages
+    const history: ChatCompletionMessageParam[] = messages
       .filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => ({ role: m.role, content: m.content }));
+      .map((m) => toOpenAIMessage(m));
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",

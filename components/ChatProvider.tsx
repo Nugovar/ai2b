@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { DEFAULT_LANG, getDict, type Lang } from "@/lib/i18n";
-import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
+import type { Attachment, ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
 import { MARKETING_ONLY } from "@/lib/config";
 import ChatWidget from "@/components/ChatWidget";
 
@@ -48,7 +48,7 @@ interface AppContextValue {
   // model is in the conversion phase. Prevents premature contact capture.
   showLeadForm: boolean;
   loading: boolean;
-  send: (text: string) => void;
+  send: (text: string, files?: File[]) => void;
   editLastUserMessage: (text: string) => void;
   // lead capture
   lead: LeadForm;
@@ -152,11 +152,47 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }, 400);
   }
 
-  // Core turn: append the user text to `base`, call the API, append the reply.
-  async function runTurn(base: ChatMessage[], text: string) {
-    const nextMessages: ChatMessage[] = [...base, { role: "user", content: text }];
-    setMessages(nextMessages);
+  // Upload any attached files first; returns the persisted attachment list (URLs
+  // or base64 data-URL fallbacks). Throws on failure so the caller can surface a
+  // localized error instead of sending a half-formed turn.
+  async function uploadFiles(files: File[]): Promise<Attachment[]> {
+    const form = new FormData();
+    files.forEach((f) => form.append("file", f));
+    const res = await fetch(`/api/upload?lang=${lang}`, { method: "POST", body: form });
+    const data = (await res.json()) as { ok: boolean; attachments?: Attachment[]; error?: string };
+    if (!data.ok || !data.attachments) {
+      throw new Error(data.error ?? t.chat.attachUploadError);
+    }
+    return data.attachments;
+  }
+
+  // Core turn: upload any files, append the user text + attachments to `base`,
+  // call the API, append the reply.
+  async function runTurn(base: ChatMessage[], text: string, files?: File[]) {
     setLoading(true);
+
+    // Upload first so the user message carries real attachment URLs. On failure,
+    // show the error as a bot message and abort the turn (nothing was sent).
+    let attachments: Attachment[] | undefined;
+    if (files && files.length > 0) {
+      try {
+        attachments = await uploadFiles(files);
+      } catch (e) {
+        setMessages([
+          ...base,
+          { role: "user", content: text },
+          { role: "assistant", content: e instanceof Error ? e.message : t.chat.attachUploadError },
+        ]);
+        setLoading(false);
+        return;
+      }
+    }
+
+    const nextMessages: ChatMessage[] = [
+      ...base,
+      { role: "user", content: text, attachments },
+    ];
+    setMessages(nextMessages);
 
     try {
       const res = await fetch("/api/chat", {
@@ -180,10 +216,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function send(text: string) {
+  async function send(text: string, files?: File[]) {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
-    await runTurn(messages, trimmed);
+    // Allow sending with only files (no text), but never an empty turn.
+    if ((!trimmed && !(files && files.length > 0)) || loading) return;
+    await runTurn(messages, trimmed, files);
   }
 
   // Edit the LAST user message and regenerate: drop that message and everything
@@ -227,6 +264,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           slots: control.slots,
           advice: adviceText,
           conversation: messages,
+          // Every file/photo the user shared anywhere in the conversation.
+          attachments: messages.flatMap((m) => m.attachments ?? []),
           // Expert-matching task signal captured from the model's control JSON.
           category: control.category,
           required_skills: control.required_skills,

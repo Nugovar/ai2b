@@ -68,6 +68,12 @@ interface Dict {
     editAria: string;
     editSave: string;
     editCancel: string;
+    attachAria: string;
+    attachRemoveAria: string;
+    attachTooLarge: string;
+    attachTooMany: string;
+    attachBadType: string;
+    attachUploadError: string;
     minimizedLabel: string;
     leadPrompt: string;
     leadName: string;
@@ -116,7 +122,7 @@ interface AdminDict {
     matchedExperts: string; context: string; advice: string; transcript: string;
     noContext: string; adviceNot: string; transcriptNot: string; noMatches: string;
     topMatch: string; phase2: string; years: string; avg: string; ai: string;
-    tiePrefix: string;
+    tiePrefix: string; attachments: string;
   };
   // tie-break criterion labels keyed by machine name from lib/match.ts
   tieBy: Record<string, string>;
@@ -224,6 +230,12 @@ const ka: Dict = {
     editAria: "შეტყობინების რედაქტირება",
     editSave: "გაგზავნა",
     editCancel: "გაუქმება",
+    attachAria: "ფაილის ან ფოტოს მიმაგრება",
+    attachRemoveAria: "ფაილის მოშორება",
+    attachTooLarge: "ფაილი ძალიან დიდია (მაქს. 5MB).",
+    attachTooMany: "მაქსიმუმ 4 ფაილი ერთ შეტყობინებაში.",
+    attachBadType: "ფაილის ტიპი არ არის დაშვებული (მხოლოდ ფოტო ან PDF).",
+    attachUploadError: "ფაილის ატვირთვა ვერ მოხერხდა. სცადეთ ხელახლა.",
     minimizedLabel: "ჩატი",
     leadPrompt: "დატოვეთ საკონტაქტო ინფორმაცია და ჩვენი ექსპერტი დაგიკავშირდებათ:",
     leadName: "სახელი",
@@ -284,6 +296,7 @@ const ka: Dict = {
       avg: "საშ.",
       ai: "AI",
       tiePrefix: "ტოლი ქულა → გადაწყვიტა:",
+      attachments: "მიმაგრებული ფაილები",
     },
     tieBy: {
       task_score: "დავალების ქულა",
@@ -411,6 +424,12 @@ const en: Dict = {
     editAria: "Edit message",
     editSave: "Send",
     editCancel: "Cancel",
+    attachAria: "Attach a file or photo",
+    attachRemoveAria: "Remove file",
+    attachTooLarge: "File is too large (max 5MB).",
+    attachTooMany: "Up to 4 files per message.",
+    attachBadType: "File type not allowed (photos or PDF only).",
+    attachUploadError: "File upload failed. Please try again.",
     minimizedLabel: "Chat",
     leadPrompt: "Leave your contact details and our expert will reach out:",
     leadName: "Name",
@@ -471,6 +490,7 @@ const en: Dict = {
       avg: "avg",
       ai: "AI",
       tiePrefix: "tie on score → decided by:",
+      attachments: "Attached files",
     },
     tieBy: {
       task_score: "task score",

@@ -2,9 +2,22 @@
 
 export type Role = "user" | "assistant" | "system";
 
+// A file or photo the user attached to a chat message. `url` is a Supabase
+// Storage public URL when storage is configured, or a base64 `data:` URL in the
+// in-memory fallback (so vision still works without Supabase).
+export interface Attachment {
+  url: string;
+  name: string;
+  type: string; // MIME type, e.g. "image/png" or "application/pdf"
+  size: number; // bytes
+  isImage: boolean; // type.startsWith("image/")
+}
+
 export interface ChatMessage {
   role: Role;
   content: string;
+  // Files/photos attached to this message (user messages only).
+  attachments?: Attachment[];
 }
 
 export type Phase = "discovery" | "advice" | "conversion";
@@ -46,6 +59,8 @@ export interface Lead {
   advice?: string;
   // Full transcript (user + bot) for this lead.
   conversation?: ChatMessage[];
+  // All files/photos the user attached anywhere in the conversation.
+  attachments?: Attachment[];
   // Expert-matching task signal captured with the lead (drives admin ranking).
   category?: string;
   required_skills?: string[];
