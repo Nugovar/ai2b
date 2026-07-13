@@ -65,7 +65,14 @@ export interface Lead {
   category?: string;
   required_skills?: string[];
   ai_relevant?: boolean;
+  // Assignment + payment workflow (set from the admin panel, not the chat).
+  assigned_expert_id?: string;
+  assigned_expert_name?: string; // denormalized for display
+  payment_status?: PaymentStatus;
 }
+
+// Payment lifecycle for an assigned task.
+export type PaymentStatus = "unpaid" | "invoiced" | "paid";
 
 // ============================================================================
 // Experts directory (skill-based matching). DESIGNERS are the first test

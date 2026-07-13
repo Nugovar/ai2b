@@ -3,7 +3,7 @@
 // kept in a module-level array so the demo never crashes. A clear console
 // warning is logged when the fallback is used.
 import { getSupabaseAdmin, isSupabaseServerConfigured } from "@/lib/supabaseServer";
-import type { Lead } from "@/lib/types";
+import type { Lead, PaymentStatus } from "@/lib/types";
 
 export interface StoredLead extends Lead {
   id: string;
@@ -148,6 +148,72 @@ export async function updateLeadStatus(id: string, status: LeadStatus): Promise<
   const lead = memoryLeads.find((l) => l.id === id);
   if (lead) {
     lead.status = status;
+    return true;
+  }
+  return false;
+}
+
+// Assign a lead to an expert (or clear the assignment when expertId is empty).
+// Auto-moves a still-"new" lead to "in_progress" so status reflects reality.
+export async function assignLeadExpert(
+  id: string,
+  expertId: string,
+  expertName: string
+): Promise<boolean> {
+  const assigning = Boolean(expertId);
+  const patch: Record<string, unknown> = {
+    assigned_expert_id: assigning ? expertId : null,
+    assigned_expert_name: assigning ? expertName : null,
+  };
+
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      // Only promote status when assigning and the lead is still "new".
+      if (assigning) {
+        const { data: cur } = await admin.from("leads").select("status").eq("id", id).single();
+        if (cur?.status === "new") patch.status = "in_progress";
+      }
+      const { error } = await admin.from("leads").update(patch).eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE assigning expert. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+      return false;
+    }
+  }
+  const lead = memoryLeads.find((l) => l.id === id);
+  if (lead) {
+    lead.assigned_expert_id = assigning ? expertId : undefined;
+    lead.assigned_expert_name = assigning ? expertName : undefined;
+    if (assigning && lead.status === "new") lead.status = "in_progress";
+    return true;
+  }
+  return false;
+}
+
+// Update a lead's payment status. Returns true on success.
+export async function updatePaymentStatus(id: string, payment: PaymentStatus): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { error } = await admin.from("leads").update({ payment_status: payment }).eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE updating payment. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+      return false;
+    }
+  }
+  const lead = memoryLeads.find((l) => l.id === id);
+  if (lead) {
+    lead.payment_status = payment;
     return true;
   }
   return false;

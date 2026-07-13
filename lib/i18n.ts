@@ -126,6 +126,11 @@ interface AdminDict {
     topMatch: string; phase2: string; years: string; avg: string; ai: string;
     tiePrefix: string; attachments: string;
   };
+  assign: {
+    title: string; assignBtn: string; assigned: string; assignedTo: string;
+    notAssigned: string; unassign: string; payment: string;
+    pay: { unpaid: string; invoiced: string; paid: string };
+  };
   // tie-break criterion labels keyed by machine name from lib/match.ts
   tieBy: Record<string, string>;
   experts: {
@@ -302,6 +307,16 @@ const ka: Dict = {
       ai: "AI",
       tiePrefix: "ტოლი ქულა → გადაწყვიტა:",
       attachments: "მიმაგრებული ფაილები",
+    },
+    assign: {
+      title: "მინიჭება და გადახდა",
+      assignBtn: "მინიჭება",
+      assigned: "მინიჭებულია ✓",
+      assignedTo: "მინიჭებული:",
+      notAssigned: "ჯერ არავისზეა მინიჭებული",
+      unassign: "მოხსნა",
+      payment: "გადახდა",
+      pay: { unpaid: "გადაუხდელი", invoiced: "ინვოისი გაგზავნილი", paid: "გადახდილი" },
     },
     tieBy: {
       task_score: "დავალების ქულა",
@@ -499,6 +514,16 @@ const en: Dict = {
       ai: "AI",
       tiePrefix: "tie on score → decided by:",
       attachments: "Attached files",
+    },
+    assign: {
+      title: "Assignment & payment",
+      assignBtn: "Assign",
+      assigned: "Assigned ✓",
+      assignedTo: "Assigned to:",
+      notAssigned: "Not assigned yet",
+      unassign: "Unassign",
+      payment: "Payment",
+      pay: { unpaid: "Unpaid", invoiced: "Invoiced", paid: "Paid" },
     },
     tieBy: {
       task_score: "task score",

@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import type { StoredLead, LeadStatus } from "@/lib/leadStore";
+import type { PaymentStatus } from "@/lib/types";
 import type { RankedExpert } from "@/lib/match";
 import { useApp } from "@/components/ChatProvider";
 import { translit } from "@/lib/translit";
@@ -14,6 +15,14 @@ const STATUS_STYLES: Record<LeadStatus, string> = {
   new: "bg-brand-red/10 text-brand-red border-brand-red/30",
   in_progress: "bg-amber-50 text-amber-700 border-amber-300",
   done: "bg-green-50 text-green-700 border-green-300",
+};
+
+const PAYMENT_ORDER: PaymentStatus[] = ["unpaid", "invoiced", "paid"];
+
+const PAYMENT_STYLES: Record<PaymentStatus, string> = {
+  unpaid: "bg-gray-100 text-gray-600 border-gray-300",
+  invoiced: "bg-amber-50 text-amber-700 border-amber-300",
+  paid: "bg-green-50 text-green-700 border-green-300",
 };
 
 function formatDate(iso: string): string {
@@ -41,6 +50,7 @@ export default function AdminLeadsTable({
   const [leads, setLeads] = useState<StoredLead[]>(initialLeads);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function deleteLeadRow(id: string) {
@@ -81,6 +91,54 @@ export default function AdminLeadsTable({
       setLeads(prev);
     } finally {
       setSavingId(null);
+    }
+  }
+
+  // Assign (or clear when expertId is "") the task to an expert. Assigning a
+  // still-"new" lead also moves it to in_progress (mirrors the server).
+  async function assignExpert(id: string, expertId: string) {
+    setAssigningId(id);
+    try {
+      const res = await fetch("/api/admin/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, expertId }),
+      });
+      const data = (await res.json()) as { ok: boolean; expertName?: string };
+      if (data.ok) {
+        setLeads((ls) =>
+          ls.map((l) =>
+            l.id === id
+              ? {
+                  ...l,
+                  assigned_expert_id: expertId || undefined,
+                  assigned_expert_name: expertId ? data.expertName || "" : undefined,
+                  status: expertId && l.status === "new" ? "in_progress" : l.status,
+                }
+              : l
+          )
+        );
+      }
+    } catch {
+      /* keep current state on failure */
+    } finally {
+      setAssigningId(null);
+    }
+  }
+
+  async function changePayment(id: string, payment: PaymentStatus) {
+    const prev = leads;
+    setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, payment_status: payment } : l)));
+    try {
+      const res = await fetch("/api/admin/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: payment }),
+      });
+      const data = (await res.json()) as { ok: boolean };
+      if (!data.ok) setLeads(prev);
+    } catch {
+      setLeads(prev);
     }
   }
 
@@ -146,11 +204,21 @@ export default function AdminLeadsTable({
                   const status = (STATUS_ORDER.includes(lead.status as LeadStatus)
                     ? lead.status
                     : "new") as LeadStatus;
+                  const payment = (PAYMENT_ORDER.includes(lead.payment_status as PaymentStatus)
+                    ? lead.payment_status
+                    : "unpaid") as PaymentStatus;
                   const open = expandedId === lead.id;
                   return (
                     <Fragment key={lead.id}>
                       <tr className="align-top hover:bg-gray-50/60">
-                        <td className="px-4 py-3 font-medium text-brand-dark">{lead.name || "-"}</td>
+                        <td className="px-4 py-3 font-medium text-brand-dark">
+                          {lead.name || "-"}
+                          {lead.assigned_expert_name && (
+                            <span className="mt-0.5 block text-[11px] font-normal text-gray-400">
+                              👤 {lead.assigned_expert_name}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                           {lead.phone ? <a href={`tel:${lead.phone}`} className="hover:text-brand-red">{lead.phone}</a> : "-"}
                         </td>
@@ -172,6 +240,11 @@ export default function AdminLeadsTable({
                               <option key={s} value={s} className="bg-white text-brand-dark">{A.status[s]}</option>
                             ))}
                           </select>
+                          <span
+                            className={`mt-1 block w-fit rounded-full border px-2 py-0.5 text-[10px] font-semibold ${PAYMENT_STYLES[payment]}`}
+                          >
+                            {A.assign.pay[payment]}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(lead.created_at)}</td>
                         <td className="px-4 py-3">
@@ -196,7 +269,13 @@ export default function AdminLeadsTable({
                       {open && (
                         <tr className="bg-gray-50/80">
                           <td colSpan={COLSPAN} className="px-4 py-5">
-                            <LeadDetail lead={lead} matches={matchesByLead[lead.id] ?? []} />
+                            <LeadDetail
+                              lead={lead}
+                              matches={matchesByLead[lead.id] ?? []}
+                              onAssign={assignExpert}
+                              onPayment={changePayment}
+                              assigning={assigningId === lead.id}
+                            />
                           </td>
                         </tr>
                       )}
@@ -212,12 +291,27 @@ export default function AdminLeadsTable({
   );
 }
 
-function LeadDetail({ lead, matches }: { lead: StoredLead; matches: RankedExpert[] }) {
+function LeadDetail({
+  lead,
+  matches,
+  onAssign,
+  onPayment,
+  assigning,
+}: {
+  lead: StoredLead;
+  matches: RankedExpert[];
+  onAssign: (id: string, expertId: string) => void;
+  onPayment: (id: string, payment: PaymentStatus) => void;
+  assigning: boolean;
+}) {
   const { t, lang } = useApp();
   const A = t.admin;
   const en = lang === "en";
   const slots = lead.slots ?? {};
   const slotKeys = Object.keys(slots);
+  const payment = (PAYMENT_ORDER.includes(lead.payment_status as PaymentStatus)
+    ? lead.payment_status
+    : "unpaid") as PaymentStatus;
 
   const reasonFor = (m: RankedExpert) => {
     const skillBits = m.requiredSkills
@@ -273,12 +367,66 @@ function LeadDetail({ lead, matches }: { lead: StoredLead; matches: RankedExpert
                     </p>
                   )}
                 </div>
+                {lead.assigned_expert_id === m.expert.id ? (
+                  <span className="ml-auto shrink-0 self-center whitespace-nowrap rounded-md bg-green-600 px-3 py-1 text-xs font-semibold text-white">
+                    {A.assign.assigned}
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => onAssign(lead.id, m.expert.id)}
+                    disabled={assigning}
+                    className="ml-auto shrink-0 self-center whitespace-nowrap rounded-md border border-brand-red px-3 py-1 text-xs font-semibold text-brand-red transition-colors hover:bg-brand-red hover:text-white disabled:opacity-50"
+                  >
+                    {A.assign.assignBtn}
+                  </button>
+                )}
               </div>
             ))}
           </ol>
         )}
         {/* Phase 2: auto-send the task + references to the #1 match, no middleman. */}
         <p className="mt-2 text-[11px] text-gray-400">{A.detail.phase2}</p>
+      </div>
+
+      {/* Assignment + payment workflow */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">{A.assign.title}</h4>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{A.assign.assignedTo}</span>
+            {lead.assigned_expert_name ? (
+              <>
+                <span className="text-sm font-semibold text-brand-dark">
+                  {en ? translit(lead.assigned_expert_name) : lead.assigned_expert_name}
+                </span>
+                <button
+                  onClick={() => onAssign(lead.id, "")}
+                  disabled={assigning}
+                  className="rounded-md border border-gray-300 px-2 py-0.5 text-[11px] text-gray-500 transition-colors hover:border-brand-red hover:text-brand-red disabled:opacity-50"
+                >
+                  {A.assign.unassign}
+                </button>
+              </>
+            ) : (
+              <span className="text-sm text-gray-400">{A.assign.notAssigned}</span>
+            )}
+          </div>
+
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{A.assign.payment}</span>
+            <select
+              value={payment}
+              onChange={(e) => onPayment(lead.id, e.target.value as PaymentStatus)}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold outline-none ${PAYMENT_STYLES[payment]}`}
+            >
+              {PAYMENT_ORDER.map((p) => (
+                <option key={p} value={p} className="bg-white text-brand-dark">
+                  {A.assign.pay[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
