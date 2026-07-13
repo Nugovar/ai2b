@@ -1,25 +1,19 @@
 // Admin leads panel. Read-only list of captured leads + status dropdown + the
 // TOP RANKED expert matches for each lead's task (computed server-side from the
-// task signal captured with the lead). Demo-gated by ADMIN_PASSWORD (?key=...).
+// task signal captured with the lead). Gated by the httpOnly admin cookie.
 import { listLeads } from "@/lib/leadStore";
 import { listPublicExperts } from "@/lib/expertStore";
 import { rankExperts, type RankedExpert } from "@/lib/match";
-import { isAdminAuthorized, isAdminProtected } from "@/lib/adminAuth";
+import { isAdminRequestAuthorized, isAdminProtected } from "@/lib/adminAuth";
 import AdminLeadsTable from "@/components/AdminLeadsTable";
 import AdminLogin from "@/components/AdminLogin";
 
 // Always render fresh (leads change at runtime).
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage({
-  searchParams,
-}: {
-  searchParams: { key?: string };
-}) {
-  const key = searchParams?.key ?? "";
-
-  if (!isAdminAuthorized(key)) {
-    return <AdminLogin action="/admin" attempted={Boolean(key)} />;
+export default async function AdminPage() {
+  if (!isAdminRequestAuthorized()) {
+    return <AdminLogin />;
   }
 
   const { leads, storage } = await listLeads();
@@ -44,7 +38,6 @@ export default async function AdminPage({
     <AdminLeadsTable
       leads={leads}
       storage={storage}
-      authKey={key}
       protectedMode={isAdminProtected()}
       matchesByLead={matchesByLead}
     />

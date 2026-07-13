@@ -87,6 +87,7 @@ interface Dict {
     errPhone: string;
     errEmail: string;
     notConfigured: string;
+    rateLimited: string;
   };
   admin: AdminDict;
 }
@@ -105,7 +106,8 @@ interface AdminDict {
   sourceSeed: string;
   unprotected: string;
   tabs: { leads: string; experts: string };
-  login: { title: string; subtitle: string; placeholder: string; button: string; wrong: string };
+  logout: string;
+  login: { title: string; subtitle: string; placeholder: string; button: string; wrong: string; loading: string };
   emptyTitle: string;
   emptyHint: string;
   th: {
@@ -249,6 +251,7 @@ const ka: Dict = {
     errPhone: "გთხოვთ, შეიყვანოთ სწორი ტელეფონის ნომერი.",
     errEmail: "გთხოვთ, შეიყვანოთ სწორი ელ. ფოსტა.",
     notConfigured: "ჩატი ჯერ არ არის კონფიგურირებული (OPENAI_API_KEY აკლია). დაამატეთ გასაღები .env.local-ში.",
+    rateLimited: "ბევრი მოთხოვნა მოვიდა ერთ დროს. გთხოვთ, დაელოდოთ წამით და სცადოთ ხელახლა. 🙏",
   },
   admin: {
     panelTitle: "ადმინ პანელი",
@@ -262,12 +265,14 @@ const ka: Dict = {
     sourceSeed: "seed (demo)",
     unprotected: "⚠ პანელი დაუცველია (ADMIN_PASSWORD არ არის დაყენებული)",
     tabs: { leads: "ლიდები", experts: "ექსპერტები" },
+    logout: "გასვლა",
     login: {
       title: "ადმინ პანელი",
       subtitle: "შეიყვანეთ პაროლი გასაგრძელებლად",
       placeholder: "პაროლი",
       button: "შესვლა",
       wrong: "პაროლი არასწორია. სცადეთ ხელახლა.",
+      loading: "შესვლა...",
     },
     emptyTitle: "ჯერ ლიდები არ არის",
     emptyHint: "ჩატში ექსპერტის გამოძახების შემდეგ ლიდები აქ გამოჩნდება.",
@@ -443,6 +448,7 @@ const en: Dict = {
     errPhone: "Please enter a valid phone number.",
     errEmail: "Please enter a valid email.",
     notConfigured: "The chat is not configured yet (OPENAI_API_KEY is missing). Add the key to .env.local.",
+    rateLimited: "Too many requests at once. Please wait a moment and try again. 🙏",
   },
   admin: {
     panelTitle: "Admin panel",
@@ -456,12 +462,14 @@ const en: Dict = {
     sourceSeed: "seed (demo)",
     unprotected: "⚠ Panel is unprotected (ADMIN_PASSWORD not set)",
     tabs: { leads: "Leads", experts: "Experts" },
+    logout: "Log out",
     login: {
       title: "Admin panel",
       subtitle: "Enter the password to continue",
       placeholder: "Password",
       button: "Sign in",
       wrong: "Wrong password. Please try again.",
+      loading: "Signing in...",
     },
     emptyTitle: "No leads yet",
     emptyHint: "Leads appear here after the chat hands off to an expert.",

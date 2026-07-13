@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { uploadChatFile } from "@/lib/storageStore";
 import { getDict, type Lang } from "@/lib/i18n";
 import { MAX_BYTES, MAX_FILES, isAllowedType } from "@/lib/uploadLimits";
+import { rateLimit, clientIp } from "@/lib/rateLimit";
 import type { Attachment } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -19,6 +20,14 @@ export async function POST(req: NextRequest) {
   const langParam = req.nextUrl.searchParams.get("lang");
   const lang: Lang = langParam === "en" ? "en" : "ka";
   const t = getDict(lang).chat;
+
+  const rl = rateLimit(`upload:${clientIp(req)}`, 15, 60_000); // 15 / min
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: t.rateLimited },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   try {
     const form = await req.formData();

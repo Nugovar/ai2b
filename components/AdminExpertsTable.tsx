@@ -17,12 +17,10 @@ function scoreColor(v: number): string {
 export default function AdminExpertsTable({
   experts,
   storage,
-  authKey,
   protectedMode,
 }: {
   experts: Expert[];
   storage: "supabase" | "memory";
-  authKey: string;
   protectedMode: boolean;
 }) {
   const { t, lang } = useApp();
@@ -86,7 +84,7 @@ export default function AdminExpertsTable({
             <a href="/" className="text-sm text-white/70 transition-colors hover:text-white">{A.backToSite}</a>
           </div>
         </div>
-        <AdminTabs active="experts" authKey={authKey} />
+        <AdminTabs active="experts" />
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

@@ -8,6 +8,7 @@ import { SYSTEM_PROMPT } from "@/lib/systemPrompt";
 import { parseControl, normalizeControl } from "@/lib/parseControl";
 import { getDict, type Lang } from "@/lib/i18n";
 import { MARKETING_ONLY } from "@/lib/config";
+import { rateLimit, clientIp } from "@/lib/rateLimit";
 import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
 import type {
   ChatCompletionContentPart,
@@ -48,14 +49,48 @@ const DEFAULT_CONTROL: ChatControl = {
   chips: [],
 };
 
+// Input bounds — reject/trim abusive payloads before they reach the model.
+const MAX_MESSAGES = 40; // only the most recent are sent
+const MAX_CONTENT_CHARS = 8000; // per message
+const MAX_ATTACHMENTS_PER_MSG = 4;
+const MAX_FETCH_BYTES = 25 * 1024 * 1024; // server-side attachment fetch cap
+const FETCH_TIMEOUT_MS = 10_000;
+
+// SSRF guard: the server may only fetch attachment bytes from a `data:` URL
+// (our no-Supabase fallback) or our OWN Supabase Storage host. Any other URL in
+// the request body (attacker-controlled) is refused, so /api/chat can't be used
+// to probe internal/arbitrary hosts.
+function attachmentUrlAllowed(url: string): boolean {
+  if (url.startsWith("data:")) return true;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!base) return false;
+    return u.host === new URL(base).host;
+  } catch {
+    return false;
+  }
+}
+
 // Fetch a remote file and return it as a base64 data URL. Data URLs (the no-
 // Supabase fallback) are returned as-is, since Node's fetch can't open them.
+// Bounded by a timeout + size cap. Callers must pre-check attachmentUrlAllowed.
 async function toDataUrl(url: string, type: string): Promise<string> {
   if (url.startsWith("data:")) return url;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`fetch ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  return `data:${type};base64,${buf.toString("base64")}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`fetch ${res.status}`);
+    const declared = Number(res.headers.get("content-length") ?? 0);
+    if (declared && declared > MAX_FETCH_BYTES) throw new Error("file too large");
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength > MAX_FETCH_BYTES) throw new Error("file too large");
+    return `data:${type};base64,${buf.toString("base64")}`;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Convert one stored chat message into the OpenAI message shape. User messages
@@ -76,6 +111,11 @@ async function toOpenAIMessage(m: ChatMessage, isLatest: boolean): Promise<ChatC
   const noteNames: string[] = [];
 
   for (const a of atts) {
+    // SSRF guard: never touch an attachment URL we don't recognize as ours.
+    if (!attachmentUrlAllowed(a.url)) {
+      noteNames.push(a.name);
+      continue;
+    }
     if (a.isImage) {
       parts.push({ type: "image_url", image_url: { url: a.url } });
     } else if (isLatest && a.type === "application/pdf") {
@@ -106,8 +146,26 @@ export async function POST(req: NextRequest) {
   const lang: Lang = body.lang === "en" ? "en" : "ka";
   const dict = getDict(lang);
 
+  // Rate limit per IP (also caps OpenAI spend from abusive callers).
+  const rl = rateLimit(`chat:${clientIp(req)}`, 20, 60_000); // 20 / min
+  if (!rl.ok) {
+    return NextResponse.json<ChatApiResponse>(
+      { reply: dict.chat.rateLimited, control: { ...DEFAULT_CONTROL } },
+      { status: 200, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
+
   try {
-    const messages = Array.isArray(body.messages) ? body.messages : [];
+    // Input bounds: keep only the most recent messages, clamp content length,
+    // and cap attachments per message before anything reaches the model.
+    const rawMessages = Array.isArray(body.messages) ? body.messages : [];
+    const messages: ChatMessage[] = rawMessages.slice(-MAX_MESSAGES).map((m) => ({
+      role: m.role,
+      content: typeof m.content === "string" ? m.content.slice(0, MAX_CONTENT_CHARS) : "",
+      attachments: Array.isArray(m.attachments)
+        ? m.attachments.slice(0, MAX_ATTACHMENTS_PER_MSG)
+        : undefined,
+    }));
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {

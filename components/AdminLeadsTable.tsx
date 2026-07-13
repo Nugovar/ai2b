@@ -28,13 +28,11 @@ const COLSPAN = 8;
 export default function AdminLeadsTable({
   leads: initialLeads,
   storage,
-  authKey,
   protectedMode,
   matchesByLead,
 }: {
   leads: StoredLead[];
   storage: "supabase" | "memory";
-  authKey: string;
   protectedMode: boolean;
   matchesByLead: Record<string, RankedExpert[]>;
 }) {
@@ -52,7 +50,7 @@ export default function AdminLeadsTable({
       const res = await fetch("/api/admin/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, key: authKey }),
+        body: JSON.stringify({ id }),
       });
       const data = (await res.json()) as { ok: boolean };
       if (data.ok) {
@@ -75,7 +73,7 @@ export default function AdminLeadsTable({
       const res = await fetch("/api/admin/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status, key: authKey }),
+        body: JSON.stringify({ id, status }),
       });
       const data = (await res.json()) as { ok: boolean };
       if (!data.ok) setLeads(prev);
@@ -107,7 +105,7 @@ export default function AdminLeadsTable({
             </a>
           </div>
         </div>
-        <AdminTabs active="leads" authKey={authKey} />
+        <AdminTabs active="leads" />
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
