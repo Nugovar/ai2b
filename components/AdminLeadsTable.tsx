@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import type { StoredLead, LeadStatus } from "@/lib/leadStore";
-import type { PaymentStatus } from "@/lib/types";
+import type { PaymentStatus, OutcomeStatus, AiDraftStatus } from "@/lib/types";
 import type { RankedExpert } from "@/lib/match";
 import { useApp } from "@/components/ChatProvider";
 import { translit } from "@/lib/translit";
@@ -18,6 +18,23 @@ const STATUS_STYLES: Record<LeadStatus, string> = {
 };
 
 const PAYMENT_ORDER: PaymentStatus[] = ["unpaid", "invoiced", "paid"];
+
+const OUTCOME_ORDER: OutcomeStatus[] = ["pending", "won", "lost"];
+
+const OUTCOME_STYLES: Record<OutcomeStatus, string> = {
+  pending: "bg-gray-100 text-gray-600 border-gray-300",
+  won: "bg-green-50 text-green-700 border-green-300",
+  lost: "bg-red-50 text-brand-red border-red-300",
+};
+
+const AI_DRAFT_ORDER: AiDraftStatus[] = ["unset", "accepted", "edited", "rejected"];
+
+const AI_DRAFT_STYLES: Record<AiDraftStatus, string> = {
+  unset: "bg-gray-100 text-gray-600 border-gray-300",
+  accepted: "bg-green-50 text-green-700 border-green-300",
+  edited: "bg-amber-50 text-amber-700 border-amber-300",
+  rejected: "bg-red-50 text-brand-red border-red-300",
+};
 
 const PAYMENT_STYLES: Record<PaymentStatus, string> = {
   unpaid: "bg-gray-100 text-gray-600 border-gray-300",
@@ -159,6 +176,36 @@ export default function AdminLeadsTable({
     }
   }
 
+  // Set outcome and/or AI-draft-acceptance. Optimistic; reverts on failure.
+  async function changeOutcome(
+    id: string,
+    fields: { outcome?: OutcomeStatus; aiDraft?: AiDraftStatus }
+  ) {
+    const prev = leads;
+    setLeads((ls) =>
+      ls.map((l) =>
+        l.id === id
+          ? {
+              ...l,
+              ...(fields.outcome ? { outcome: fields.outcome } : {}),
+              ...(fields.aiDraft ? { ai_draft_status: fields.aiDraft } : {}),
+            }
+          : l
+      )
+    );
+    try {
+      const res = await fetch("/api/admin/outcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...fields }),
+      });
+      const data = (await res.json()) as { ok: boolean };
+      if (!data.ok) setLeads(prev);
+    } catch {
+      setLeads(prev);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gray-50">
       <header className="bg-brand-dark text-white">
@@ -292,6 +339,7 @@ export default function AdminLeadsTable({
                               onAssign={assignExpert}
                               onPayment={changePayment}
                               onAmount={changeAmount}
+                              onOutcome={changeOutcome}
                               assigning={assigningId === lead.id}
                             />
                           </td>
@@ -315,6 +363,7 @@ function LeadDetail({
   onAssign,
   onPayment,
   onAmount,
+  onOutcome,
   assigning,
 }: {
   lead: StoredLead;
@@ -322,6 +371,7 @@ function LeadDetail({
   onAssign: (id: string, expertId: string) => void;
   onPayment: (id: string, payment: PaymentStatus) => void;
   onAmount: (id: string, amount: number) => void;
+  onOutcome: (id: string, fields: { outcome?: OutcomeStatus; aiDraft?: AiDraftStatus }) => void;
   assigning: boolean;
 }) {
   const { t, lang } = useApp();
@@ -332,6 +382,12 @@ function LeadDetail({
   const payment = (PAYMENT_ORDER.includes(lead.payment_status as PaymentStatus)
     ? lead.payment_status
     : "unpaid") as PaymentStatus;
+  const outcome = (OUTCOME_ORDER.includes(lead.outcome as OutcomeStatus)
+    ? lead.outcome
+    : "pending") as OutcomeStatus;
+  const aiDraft = (AI_DRAFT_ORDER.includes(lead.ai_draft_status as AiDraftStatus)
+    ? lead.ai_draft_status
+    : "unset") as AiDraftStatus;
 
   const reasonFor = (m: RankedExpert) => {
     const skillBits = m.requiredSkills
@@ -464,6 +520,40 @@ function LeadDetail({
               }}
               className="w-24 rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-brand-dark outline-none focus:border-brand-red"
             />
+          </label>
+        </div>
+
+        {/* Outcome tracking: closes input -> action -> outcome, and captures the
+            north-star AI-draft-acceptance signal. */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-gray-100 pt-3">
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{A.outcome.label}</span>
+            <select
+              value={outcome}
+              onChange={(e) => onOutcome(lead.id, { outcome: e.target.value as OutcomeStatus })}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold outline-none ${OUTCOME_STYLES[outcome]}`}
+            >
+              {OUTCOME_ORDER.map((o) => (
+                <option key={o} value={o} className="bg-white text-brand-dark">
+                  {A.outcome[o]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{A.aiDraft.label}</span>
+            <select
+              value={aiDraft}
+              onChange={(e) => onOutcome(lead.id, { aiDraft: e.target.value as AiDraftStatus })}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold outline-none ${AI_DRAFT_STYLES[aiDraft]}`}
+            >
+              {AI_DRAFT_ORDER.map((d) => (
+                <option key={d} value={d} className="bg-white text-brand-dark">
+                  {A.aiDraft[d]}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
       </div>

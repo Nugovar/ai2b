@@ -97,6 +97,16 @@ export default function AdminMetrics({
     { key: "invoiced" as const, cls: "bg-amber-50 text-amber-700 border-amber-300" },
     { key: "unpaid" as const, cls: "bg-gray-100 text-gray-600 border-gray-300" },
   ];
+  const outcomes = [
+    { key: "won" as const, cls: "bg-green-50 text-green-700 border-green-300" },
+    { key: "lost" as const, cls: "bg-red-50 text-brand-red border-red-300" },
+    { key: "pending" as const, cls: "bg-gray-100 text-gray-600 border-gray-300" },
+  ];
+  const drafts = [
+    { key: "accepted" as const, cls: "bg-green-50 text-green-700 border-green-300" },
+    { key: "edited" as const, cls: "bg-amber-50 text-amber-700 border-amber-300" },
+    { key: "rejected" as const, cls: "bg-red-50 text-brand-red border-red-300" },
+  ];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -135,6 +145,35 @@ export default function AdminMetrics({
           </div>
         ) : (
           <div className="space-y-6">
+            {/* North-star: AI-draft acceptance rate. The metric that decides
+                software- vs agency-margined, so it leads the dashboard. */}
+            <div className="rounded-2xl border-2 border-brand-red/30 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-red">
+                    {M.kpiAcceptance}
+                  </p>
+                  <p className="mt-1 text-4xl font-bold text-brand-dark">
+                    {metrics.aiDraftRated > 0 ? `${Math.round(metrics.aiAcceptanceRate * 100)}%` : "—"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-gray-400">
+                    {M.acceptanceHint} · {fmt(metrics.aiDraftRated)} {M.rated}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {drafts.map(({ key, cls }) => (
+                    <div
+                      key={key}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${cls}`}
+                    >
+                      <span>{A.aiDraft[key]}</span>
+                      <span className="tabular-nums">{fmt(metrics.aiDraftSplit[key])}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* KPI tiles */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
               <Tile label={M.kpiTotal} value={fmt(metrics.total)} />
@@ -146,6 +185,17 @@ export default function AdminMetrics({
               />
               <Tile label={M.kpiCollected} value={`${fmt(metrics.revenueCollected)} ${M.gel}`} />
               <Tile label={M.kpiOutstanding} value={`${fmt(metrics.revenueOutstanding)} ${M.gel}`} />
+              <Tile
+                label={M.kpiWinRate}
+                value={
+                  metrics.outcomeSplit.won + metrics.outcomeSplit.lost > 0
+                    ? `${Math.round(metrics.winRate * 100)}%`
+                    : "—"
+                }
+                sub={`${fmt(metrics.outcomeSplit.won)} / ${fmt(
+                  metrics.outcomeSplit.won + metrics.outcomeSplit.lost
+                )}`}
+              />
               <Tile label={M.kpiPipeline} value={`${fmt(metrics.pipelineValue)} ${M.gel}`} />
             </div>
 
@@ -165,9 +215,6 @@ export default function AdminMetrics({
                     />
                   ))}
                 </div>
-                <p className="mt-4 text-xs text-gray-400">
-                  {M.aiRelevant}: <span className="font-semibold text-brand-dark">{fmt(metrics.aiRelevant)}</span>
-                </p>
               </div>
 
               {/* Payment split — status colors with text labels */}
@@ -187,6 +234,37 @@ export default function AdminMetrics({
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Outcomes — status colors + text labels */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-400">
+                  {M.outcomeTitle}
+                </h3>
+                <div className="space-y-2.5">
+                  {outcomes.map(({ key, cls }) => (
+                    <div key={key} className="flex items-center justify-between gap-3">
+                      <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${cls}`}>
+                        {A.outcome[key]}
+                      </span>
+                      <span className="text-sm font-semibold text-brand-dark">
+                        {fmt(metrics.outcomeSplit[key])}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI-relevant demand vs the aiRelevant note already shown in funnel;
+                  here we surface it inline for balance. */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-gray-400">
+                  {M.aiRelevant}
+                </h3>
+                <p className="text-4xl font-bold text-brand-dark">{fmt(metrics.aiRelevant)}</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {M.aiRelevant} / {fmt(metrics.total)}
+                </p>
               </div>
 
               <BarCard title={M.byCategory} rows={metrics.byCategory} empty={M.noData} />

@@ -2,7 +2,7 @@
 // (the caller passes `now`) so it stays deterministic and testable. The admin
 // dashboard renders whatever this returns.
 import type { StoredLead } from "@/lib/leadStore";
-import type { PaymentStatus } from "@/lib/types";
+import type { PaymentStatus, OutcomeStatus, AiDraftStatus } from "@/lib/types";
 
 export interface BreakdownRow {
   label: string;
@@ -26,6 +26,12 @@ export interface Metrics {
   byExpert: BreakdownRow[]; // assignments per expert, desc
   paymentSplit: Record<PaymentStatus, number>;
   aiRelevant: number; // count of AI-relevant tasks
+  // Outcome tracking + the north-star.
+  outcomeSplit: Record<OutcomeStatus, number>;
+  winRate: number; // won / (won + lost), 0..1
+  aiDraftSplit: Record<AiDraftStatus, number>;
+  aiDraftRated: number; // accepted + edited + rejected (excludes unset)
+  aiAcceptanceRate: number; // accepted / rated, 0..1 — THE north-star
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -40,6 +46,8 @@ function amt(l: StoredLead): number {
 
 export function computeMetrics(leads: StoredLead[], now: number): Metrics {
   const paymentSplit: Record<PaymentStatus, number> = { unpaid: 0, invoiced: 0, paid: 0 };
+  const outcomeSplit: Record<OutcomeStatus, number> = { pending: 0, won: 0, lost: 0 };
+  const aiDraftSplit: Record<AiDraftStatus, number> = { unset: 0, accepted: 0, edited: 0, rejected: 0 };
   const catMap = new Map<string, number>();
   const expertMap = new Map<string, number>();
 
@@ -78,6 +86,18 @@ export function computeMetrics(leads: StoredLead[], now: number): Metrics {
     if (l.status === "done") done++;
     if (l.ai_relevant) aiRelevant++;
 
+    const oc = (["pending", "won", "lost"] as OutcomeStatus[]).includes(l.outcome as OutcomeStatus)
+      ? (l.outcome as OutcomeStatus)
+      : "pending";
+    outcomeSplit[oc]++;
+
+    const ad = (["unset", "accepted", "edited", "rejected"] as AiDraftStatus[]).includes(
+      l.ai_draft_status as AiDraftStatus
+    )
+      ? (l.ai_draft_status as AiDraftStatus)
+      : "unset";
+    aiDraftSplit[ad]++;
+
     const cat = (l.category || l.business_type || "—").trim() || "—";
     catMap.set(cat, (catMap.get(cat) ?? 0) + 1);
 
@@ -92,6 +112,8 @@ export function computeMetrics(leads: StoredLead[], now: number): Metrics {
       .sort((a, b) => b.count - a.count);
 
   const total = leads.length;
+  const aiDraftRated = aiDraftSplit.accepted + aiDraftSplit.edited + aiDraftSplit.rejected;
+  const decidedOutcomes = outcomeSplit.won + outcomeSplit.lost;
 
   return {
     total,
@@ -105,5 +127,10 @@ export function computeMetrics(leads: StoredLead[], now: number): Metrics {
     byExpert: toRows(expertMap),
     paymentSplit,
     aiRelevant,
+    outcomeSplit,
+    winRate: decidedOutcomes > 0 ? outcomeSplit.won / decidedOutcomes : 0,
+    aiDraftSplit,
+    aiDraftRated,
+    aiAcceptanceRate: aiDraftRated > 0 ? aiDraftSplit.accepted / aiDraftRated : 0,
   };
 }

@@ -109,12 +109,16 @@ interface AdminDict {
   tabs: { leads: string; experts: string; metrics: string };
   logout: string;
   amount: string;
+  outcome: { label: string; pending: string; won: string; lost: string };
+  aiDraft: { label: string; unset: string; accepted: string; edited: string; rejected: string };
   metrics: {
     kpiTotal: string; kpiLast30: string; kpiPaidConv: string;
     kpiCollected: string; kpiOutstanding: string; kpiPipeline: string;
     funnelTitle: string; fCaptured: string; fAssigned: string; fDone: string; fPaid: string;
     byCategory: string; byExpert: string; payment: string; aiRelevant: string;
     noExperts: string; noData: string; gel: string;
+    kpiAcceptance: string; acceptanceHint: string; kpiWinRate: string;
+    outcomeTitle: string; aiDraftTitle: string; rated: string;
   };
   login: { title: string; subtitle: string; placeholder: string; button: string; wrong: string; loading: string };
   emptyTitle: string;
@@ -282,6 +286,14 @@ const ka: Dict = {
     tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები" },
     logout: "გასვლა",
     amount: "თანხა (₾)",
+    outcome: { label: "შედეგი", pending: "მიმდინარე", won: "მოგებული", lost: "წაგებული" },
+    aiDraft: {
+      label: "AI-ბრიფის ხარისხი",
+      unset: "არ არის შეფასებული",
+      accepted: "მიღებული (როგორც არის)",
+      edited: "შესწორებული",
+      rejected: "უარყოფილი",
+    },
     metrics: {
       kpiTotal: "სულ ლიდები",
       kpiLast30: "ბოლო 30 დღე",
@@ -301,6 +313,12 @@ const ka: Dict = {
       noExperts: "ჯერ არავისზეა მინიჭებული",
       noData: "ჯერ მონაცემი არ არის",
       gel: "₾",
+      kpiAcceptance: "AI-დრაფტის მიღება ⭐",
+      acceptanceHint: "მთავარი მეტრიკა — software თუ agency",
+      kpiWinRate: "მოგების %",
+      outcomeTitle: "შედეგები",
+      aiDraftTitle: "AI-ბრიფის ხარისხი",
+      rated: "შეფასებული",
     },
     login: {
       title: "ადმინ პანელი",
@@ -511,6 +529,14 @@ const en: Dict = {
     tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics" },
     logout: "Log out",
     amount: "Amount (GEL)",
+    outcome: { label: "Outcome", pending: "Pending", won: "Won", lost: "Lost" },
+    aiDraft: {
+      label: "AI-draft quality",
+      unset: "Not rated",
+      accepted: "Accepted (as-is)",
+      edited: "Edited",
+      rejected: "Rejected",
+    },
     metrics: {
       kpiTotal: "Total leads",
       kpiLast30: "Last 30 days",
@@ -530,6 +556,12 @@ const en: Dict = {
       noExperts: "No assignments yet",
       noData: "No data yet",
       gel: "₾",
+      kpiAcceptance: "AI-draft acceptance ⭐",
+      acceptanceHint: "North-star — software vs agency",
+      kpiWinRate: "Win rate",
+      outcomeTitle: "Outcomes",
+      aiDraftTitle: "AI-draft quality",
+      rated: "rated",
     },
     login: {
       title: "Admin panel",

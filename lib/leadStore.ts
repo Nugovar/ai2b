@@ -3,7 +3,7 @@
 // kept in a module-level array so the demo never crashes. A clear console
 // warning is logged when the fallback is used.
 import { getSupabaseAdmin, isSupabaseServerConfigured } from "@/lib/supabaseServer";
-import type { Lead, PaymentStatus } from "@/lib/types";
+import type { Lead, PaymentStatus, OutcomeStatus, AiDraftStatus } from "@/lib/types";
 
 export interface StoredLead extends Lead {
   id: string;
@@ -215,6 +215,40 @@ export async function updateLeadAmount(id: string, amount: number): Promise<bool
   const lead = memoryLeads.find((l) => l.id === id);
   if (lead) {
     lead.amount = safe;
+    return true;
+  }
+  return false;
+}
+
+// Update a lead's outcome and/or AI-draft-acceptance signal. Only the provided
+// fields are written. Returns true on success.
+export async function updateLeadOutcome(
+  id: string,
+  fields: { outcome?: OutcomeStatus; ai_draft_status?: AiDraftStatus }
+): Promise<boolean> {
+  const patch: Record<string, string> = {};
+  if (fields.outcome) patch.outcome = fields.outcome;
+  if (fields.ai_draft_status) patch.ai_draft_status = fields.ai_draft_status;
+  if (Object.keys(patch).length === 0) return false;
+
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { error } = await admin.from("leads").update(patch).eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE updating outcome. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+      return false;
+    }
+  }
+  const lead = memoryLeads.find((l) => l.id === id);
+  if (lead) {
+    if (fields.outcome) lead.outcome = fields.outcome;
+    if (fields.ai_draft_status) lead.ai_draft_status = fields.ai_draft_status;
     return true;
   }
   return false;
