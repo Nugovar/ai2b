@@ -126,6 +126,23 @@ export default function AdminLeadsTable({
     }
   }
 
+  // Set the deal amount (GEL). Optimistic; reverts on failure.
+  async function changeAmount(id: string, amount: number) {
+    const prev = leads;
+    setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, amount } : l)));
+    try {
+      const res = await fetch("/api/admin/amount", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, amount }),
+      });
+      const data = (await res.json()) as { ok: boolean };
+      if (!data.ok) setLeads(prev);
+    } catch {
+      setLeads(prev);
+    }
+  }
+
   async function changePayment(id: string, payment: PaymentStatus) {
     const prev = leads;
     setLeads((ls) => ls.map((l) => (l.id === id ? { ...l, payment_status: payment } : l)));
@@ -274,6 +291,7 @@ export default function AdminLeadsTable({
                               matches={matchesByLead[lead.id] ?? []}
                               onAssign={assignExpert}
                               onPayment={changePayment}
+                              onAmount={changeAmount}
                               assigning={assigningId === lead.id}
                             />
                           </td>
@@ -296,12 +314,14 @@ function LeadDetail({
   matches,
   onAssign,
   onPayment,
+  onAmount,
   assigning,
 }: {
   lead: StoredLead;
   matches: RankedExpert[];
   onAssign: (id: string, expertId: string) => void;
   onPayment: (id: string, payment: PaymentStatus) => void;
+  onAmount: (id: string, amount: number) => void;
   assigning: boolean;
 }) {
   const { t, lang } = useApp();
@@ -425,6 +445,25 @@ function LeadDetail({
                 </option>
               ))}
             </select>
+          </label>
+
+          {/* Deal amount (GEL). Saves on blur or Enter. */}
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">{A.amount}</span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={lead.amount ?? 0}
+              onBlur={(e) => {
+                const v = Math.max(0, Math.round(Number(e.target.value) || 0));
+                if (v !== (lead.amount ?? 0)) onAmount(lead.id, v);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+              className="w-24 rounded-md border border-gray-300 px-2 py-1 text-xs font-semibold text-brand-dark outline-none focus:border-brand-red"
+            />
           </label>
         </div>
       </div>

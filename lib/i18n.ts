@@ -98,6 +98,7 @@ interface AdminDict {
   panelTitle: string;
   leadsSubtitle: string;
   expertsSubtitle: string;
+  metricsSubtitle: string;
   backToSite: string;
   total: string;
   source: string;
@@ -105,8 +106,16 @@ interface AdminDict {
   sourceMemory: string;
   sourceSeed: string;
   unprotected: string;
-  tabs: { leads: string; experts: string };
+  tabs: { leads: string; experts: string; metrics: string };
   logout: string;
+  amount: string;
+  metrics: {
+    kpiTotal: string; kpiLast30: string; kpiPaidConv: string;
+    kpiCollected: string; kpiOutstanding: string; kpiPipeline: string;
+    funnelTitle: string; fCaptured: string; fAssigned: string; fDone: string; fPaid: string;
+    byCategory: string; byExpert: string; payment: string; aiRelevant: string;
+    noExperts: string; noData: string; gel: string;
+  };
   login: { title: string; subtitle: string; placeholder: string; button: string; wrong: string; loading: string };
   emptyTitle: string;
   emptyHint: string;
@@ -262,6 +271,7 @@ const ka: Dict = {
     panelTitle: "ადმინ პანელი",
     leadsSubtitle: "ჩატიდან მიღებული ლიდები",
     expertsSubtitle: "ექსპერტების დირექტორია",
+    metricsSubtitle: "მეტრიკები და შემოსავალი",
     backToSite: "← საიტზე დაბრუნება",
     total: "სულ",
     source: "მონაცემთა წყარო",
@@ -269,8 +279,29 @@ const ka: Dict = {
     sourceMemory: "მეხსიერება (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ პანელი დაუცველია (ADMIN_PASSWORD არ არის დაყენებული)",
-    tabs: { leads: "ლიდები", experts: "ექსპერტები" },
+    tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები" },
     logout: "გასვლა",
+    amount: "თანხა (₾)",
+    metrics: {
+      kpiTotal: "სულ ლიდები",
+      kpiLast30: "ბოლო 30 დღე",
+      kpiPaidConv: "გადახდამდე კონვერსია",
+      kpiCollected: "მიღებული შემოსავალი",
+      kpiOutstanding: "მოსალოდნელი (ინვოისი)",
+      kpiPipeline: "მიმდინარე pipeline",
+      funnelTitle: "ფანელი",
+      fCaptured: "მიღებული",
+      fAssigned: "მინიჭებული",
+      fDone: "დასრულებული",
+      fPaid: "გადახდილი",
+      byCategory: "კატეგორიის მიხედვით",
+      byExpert: "ექსპერტის დატვირთვა",
+      payment: "გადახდის სტატუსი",
+      aiRelevant: "AI-რელევანტური",
+      noExperts: "ჯერ არავისზეა მინიჭებული",
+      noData: "ჯერ მონაცემი არ არის",
+      gel: "₾",
+    },
     login: {
       title: "ადმინ პანელი",
       subtitle: "შეიყვანეთ პაროლი გასაგრძელებლად",
@@ -469,6 +500,7 @@ const en: Dict = {
     panelTitle: "Admin panel",
     leadsSubtitle: "Leads captured from the chat",
     expertsSubtitle: "Experts directory",
+    metricsSubtitle: "Metrics & revenue",
     backToSite: "← Back to site",
     total: "Total",
     source: "Data source",
@@ -476,8 +508,29 @@ const en: Dict = {
     sourceMemory: "in-memory (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ Panel is unprotected (ADMIN_PASSWORD not set)",
-    tabs: { leads: "Leads", experts: "Experts" },
+    tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics" },
     logout: "Log out",
+    amount: "Amount (GEL)",
+    metrics: {
+      kpiTotal: "Total leads",
+      kpiLast30: "Last 30 days",
+      kpiPaidConv: "Paid conversion",
+      kpiCollected: "Revenue collected",
+      kpiOutstanding: "Outstanding (invoiced)",
+      kpiPipeline: "Active pipeline",
+      funnelTitle: "Funnel",
+      fCaptured: "Captured",
+      fAssigned: "Assigned",
+      fDone: "Done",
+      fPaid: "Paid",
+      byCategory: "By category",
+      byExpert: "Expert workload",
+      payment: "Payment status",
+      aiRelevant: "AI-relevant",
+      noExperts: "No assignments yet",
+      noData: "No data yet",
+      gel: "₾",
+    },
     login: {
       title: "Admin panel",
       subtitle: "Enter the password to continue",

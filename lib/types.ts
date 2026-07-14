@@ -69,6 +69,7 @@ export interface Lead {
   assigned_expert_id?: string;
   assigned_expert_name?: string; // denormalized for display
   payment_status?: PaymentStatus;
+  amount?: number; // deal value in GEL (whole lari), set in the admin panel
 }
 
 // Payment lifecycle for an assigned task.

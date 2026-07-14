@@ -195,6 +195,31 @@ export async function assignLeadExpert(
   return false;
 }
 
+// Update a lead's deal amount (GEL, whole lari). Returns true on success.
+export async function updateLeadAmount(id: string, amount: number): Promise<boolean> {
+  const safe = Number.isFinite(amount) && amount >= 0 ? Math.round(amount) : 0;
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { error } = await admin.from("leads").update({ amount: safe }).eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE updating amount. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+      return false;
+    }
+  }
+  const lead = memoryLeads.find((l) => l.id === id);
+  if (lead) {
+    lead.amount = safe;
+    return true;
+  }
+  return false;
+}
+
 // Update a lead's payment status. Returns true on success.
 export async function updatePaymentStatus(id: string, payment: PaymentStatus): Promise<boolean> {
   const admin = getSupabaseAdmin();
