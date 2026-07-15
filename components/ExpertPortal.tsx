@@ -4,12 +4,14 @@
 // view where they read the AI brief, then complete + rate it. The rating writes
 // the SAME ai_draft_status field the admin used, so it feeds the north-star
 // acceptance metric directly — but now reported by the person who did the work.
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/ChatProvider";
 import { getExpertDict } from "@/lib/expertI18n";
+import { uploadFiles } from "@/lib/uploadClient";
+import { ACCEPT_ATTR } from "@/lib/uploadLimits";
 import type { ExpertTask } from "@/lib/leadStore";
-import type { AiDraftStatus } from "@/lib/types";
+import type { AiDraftStatus, Attachment } from "@/lib/types";
 
 type Rating = Exclude<AiDraftStatus, "unset">;
 
@@ -47,6 +49,7 @@ export default function ExpertPortal({
   const [tasks, setTasks] = useState<ExpertTask[]>(initialTasks);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rating, setRating] = useState<Rating | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
 
@@ -60,6 +63,7 @@ export default function ExpertPortal({
   function openTask(id: string) {
     setSelectedId(id);
     setRating(null);
+    setFiles([]);
     setError(false);
   }
 
@@ -73,10 +77,16 @@ export default function ExpertPortal({
     setBusy(true);
     setError(false);
     try {
+      // Upload any attached deliverables first, so the submit carries real URLs.
+      let deliverables: Attachment[] = [];
+      if (files.length > 0) {
+        deliverables = await uploadFiles(files, lang, T.uploadError);
+      }
+
       const res = await fetch("/api/expert/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: selected.id, rating }),
+        body: JSON.stringify({ taskId: selected.id, rating, deliverables }),
       });
       if (!res.ok) {
         setError(true);
@@ -86,9 +96,17 @@ export default function ExpertPortal({
       // Optimistically reflect the completion in local state.
       setTasks((prev) =>
         prev.map((t) =>
-          t.id === selected.id ? { ...t, status: "done", ai_draft_status: rating } : t
+          t.id === selected.id
+            ? {
+                ...t,
+                status: "done",
+                ai_draft_status: rating,
+                deliverables: deliverables.length > 0 ? deliverables : t.deliverables,
+              }
+            : t
         )
       );
+      setFiles([]);
       setBusy(false);
     } catch {
       setError(true);
@@ -155,6 +173,8 @@ export default function ExpertPortal({
             statusLabel={statusLabel}
             rating={rating}
             setRating={setRating}
+            files={files}
+            setFiles={setFiles}
             busy={busy}
             error={error}
             onSubmit={submit}
@@ -234,6 +254,8 @@ function Detail({
   statusLabel,
   rating,
   setRating,
+  files,
+  setFiles,
   busy,
   error,
   onSubmit,
@@ -244,14 +266,18 @@ function Detail({
   statusLabel: (s: string) => string;
   rating: Exclude<AiDraftStatus, "unset"> | null;
   setRating: (r: Exclude<AiDraftStatus, "unset">) => void;
+  files: File[];
+  setFiles: (f: File[]) => void;
   busy: boolean;
   error: boolean;
   onSubmit: () => void;
   onBack: () => void;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isDone = task.status === "done";
   const skills = task.required_skills ?? [];
-  const files = task.attachments ?? [];
+  const clientFiles = task.attachments ?? [];
+  const deliverables = task.deliverables ?? [];
   const slots = task.slots ? Object.entries(task.slots) : [];
   const rateLabel = (r: string) =>
     r === "accepted" ? T.rateAccepted : r === "edited" ? T.rateEdited : T.rateRejected;
@@ -333,14 +359,14 @@ function Detail({
         </section>
       )}
 
-      {/* Files */}
-      {files.length > 0 && (
+      {/* Client-supplied files */}
+      {clientFiles.length > 0 && (
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
             {T.filesTitle}
           </h3>
           <ul className="space-y-2">
-            {files.map((f, i) => (
+            {clientFiles.map((f, i) => (
               <li key={i}>
                 <a
                   href={f.url}
@@ -357,7 +383,7 @@ function Detail({
         </section>
       )}
 
-      {/* Submit / rate — or the recorded rating if already done */}
+      {/* Submit / rate — or the recorded rating + deliverables if already done */}
       {isDone ? (
         <section className="rounded-2xl border-2 border-green-200 bg-green-50/50 p-5">
           <p className="text-sm font-semibold text-green-700">{T.submitted}</p>
@@ -365,6 +391,28 @@ function Detail({
             <p className="mt-1 text-sm text-gray-500">
               {T.briefTitle}: <span className="font-medium">{rateLabel(task.ai_draft_status)}</span>
             </p>
+          )}
+          {deliverables.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-gray-400">
+                {T.deliverablesTitle}
+              </p>
+              <ul className="space-y-1.5">
+                {deliverables.map((f, i) => (
+                  <li key={i}>
+                    <a
+                      href={f.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-green-700 hover:underline"
+                    >
+                      <span aria-hidden>{f.isImage ? "🖼️" : "📄"}</span>
+                      <span className="truncate">{f.name}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </section>
       ) : (
@@ -392,6 +440,37 @@ function Detail({
                 </button>
               );
             })}
+          </div>
+
+          {/* Optional deliverable upload */}
+          <div className="mt-4 rounded-xl border border-dashed border-gray-300 p-3">
+            <p className="mb-2 text-xs font-semibold text-gray-500">{T.attachTitle}</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ACCEPT_ATTR}
+              onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+              className="hidden"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-brand-dark transition-colors hover:border-brand-red"
+              >
+                {T.attachBtn}
+              </button>
+              {files.map((f, i) => (
+                <span
+                  key={i}
+                  className="max-w-[12rem] truncate rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600"
+                  title={f.name}
+                >
+                  {f.name}
+                </span>
+              ))}
+            </div>
           </div>
 
           {error && (

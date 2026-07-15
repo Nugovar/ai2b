@@ -137,7 +137,7 @@ interface AdminDict {
     matchedExperts: string; context: string; advice: string; transcript: string;
     noContext: string; adviceNot: string; transcriptNot: string; noMatches: string;
     topMatch: string; phase2: string; years: string; avg: string; ai: string;
-    tiePrefix: string; attachments: string;
+    tiePrefix: string; attachments: string; deliverables: string;
   };
   assign: {
     title: string; assignBtn: string; assigned: string; assignedTo: string;
@@ -367,7 +367,7 @@ const ka: Dict = {
       avg: "საშ.",
       ai: "AI",
       tiePrefix: "ტოლი ქულა → გადაწყვიტა:",
-      attachments: "მიმაგრებული ფაილები",
+      attachments: "მიმაგრებული ფაილები", deliverables: "ექსპერტის ნამუშევარი",
     },
     assign: {
       title: "მინიჭება და გადახდა",
@@ -615,7 +615,7 @@ const en: Dict = {
       avg: "avg",
       ai: "AI",
       tiePrefix: "tie on score → decided by:",
-      attachments: "Attached files",
+      attachments: "Attached files", deliverables: "Expert deliverables",
     },
     assign: {
       title: "Assignment & payment",

@@ -42,6 +42,11 @@ export interface ExpertDict {
   rateEditedHint: string;
   rateRejected: string;
   rateRejectedHint: string;
+  attachTitle: string; // "upload your work (optional)"
+  attachBtn: string;
+  uploading: string;
+  uploadError: string;
+  deliverablesTitle: string; // shown on a done task
   submitBtn: string;
   submitting: string;
   submitError: string;
@@ -86,6 +91,11 @@ const ka: ExpertDict = {
   rateEditedHint: "სასარგებლო იყო, მაგრამ საგრძნობლად გადავამუშავე",
   rateRejected: "თავიდან გავაკეთე",
   rateRejectedHint: "ბრიფი გამოუსადეგარი იყო, ნულიდან დავიწყე",
+  attachTitle: "ატვირთე ნამუშევარი (არასავალდებულო)",
+  attachBtn: "ფაილების მიმაგრება",
+  uploading: "იტვირთება...",
+  uploadError: "ატვირთვა ვერ მოხერხდა",
+  deliverablesTitle: "ნამუშევარი",
   submitBtn: "დასრულება",
   submitting: "იგზავნება...",
   submitError: "შენახვა ვერ მოხერხდა. სცადე ხელახლა.",
@@ -130,6 +140,11 @@ const en: ExpertDict = {
   rateEditedHint: "Useful, but I reworked it significantly",
   rateRejected: "Started over",
   rateRejectedHint: "The brief was useless, I started from scratch",
+  attachTitle: "Upload your work (optional)",
+  attachBtn: "Attach files",
+  uploading: "Uploading...",
+  uploadError: "Upload failed",
+  deliverablesTitle: "Deliverables",
   submitBtn: "Complete",
   submitting: "Submitting...",
   submitError: "Couldn't save. Please try again.",

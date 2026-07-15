@@ -61,6 +61,9 @@ export interface Lead {
   conversation?: ChatMessage[];
   // All files/photos the user attached anywhere in the conversation.
   attachments?: Attachment[];
+  // Files the assigned EXPERT uploaded as the finished work (expert portal).
+  // Distinct from `attachments` (client-supplied inputs) — these are outputs.
+  deliverables?: Attachment[];
   // Expert-matching task signal captured with the lead (drives admin ranking).
   category?: string;
   required_skills?: string[];

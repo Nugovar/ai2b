@@ -95,6 +95,7 @@ export interface ExpertTask {
   advice?: string; // the AI "draft" the expert executes against
   slots?: Record<string, string>;
   attachments?: Attachment[];
+  deliverables?: Attachment[]; // the expert's own uploaded work
   ai_draft_status?: AiDraftStatus; // current rating (so the UI reflects state)
 }
 
@@ -112,6 +113,7 @@ export function toExpertTask(l: StoredLead): ExpertTask {
     advice: l.advice,
     slots: l.slots,
     attachments: l.attachments,
+    deliverables: l.deliverables,
     ai_draft_status: l.ai_draft_status,
   };
 }
@@ -351,6 +353,34 @@ export async function updateLeadOutcome(
   if (lead) {
     if (fields.outcome) lead.outcome = fields.outcome;
     if (fields.ai_draft_status) lead.ai_draft_status = fields.ai_draft_status;
+    return true;
+  }
+  return false;
+}
+
+// Set a lead's expert deliverables (the finished-work files). Replaces the
+// array. Returns true on success. Server-only; caller must verify ownership.
+export async function updateLeadDeliverables(
+  id: string,
+  deliverables: Attachment[]
+): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { error } = await admin.from("leads").update({ deliverables }).eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE updating deliverables. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+      return false;
+    }
+  }
+  const lead = memoryLeads.find((l) => l.id === id);
+  if (lead) {
+    lead.deliverables = deliverables;
     return true;
   }
   return false;
