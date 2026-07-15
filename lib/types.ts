@@ -117,10 +117,15 @@ export interface Expert {
   phone?: string;
   social?: string;
   notes?: string;
+  // Expert-portal login (admin-provisioned). `login_code` is the per-expert
+  // secret the expert enters with their email to sign in; both are INTERNAL and
+  // never leave the server / never appear in any client/chat payload.
+  email?: string;
+  login_code?: string;
 }
 
-// Client/chat-safe expert shape: internal contact fields stripped.
-export type PublicExpert = Omit<Expert, "phone" | "social" | "notes">;
+// Client/chat-safe expert shape: internal contact + login fields stripped.
+export type PublicExpert = Omit<Expert, "phone" | "social" | "notes" | "email" | "login_code">;
 
 // Designer skill taxonomy (the keys used in skill_scores for this category).
 export const DESIGNER_SKILLS = [

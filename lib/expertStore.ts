@@ -18,7 +18,8 @@ const FALLBACK_DESIGNERS: Expert[] = [
     skill_scores: { logo: 9, branding: 9, poster: 5, social_media: 6, business_card: 7, ui_ux: 4, illustration: 5 },
     ai_skill: 6, tools: ["Illustrator", "Photoshop", "InDesign"], overall_rating: 9.0,
     available: true, city: "თბილისი",
-    phone: "+995 599 10 00 01", social: "@nino.brand", notes: "ძლიერი ლოგო/ბრენდინგში; პრემიум კლიენტები.",
+    phone: "+995 599 10 00 01", social: "@nino.brand", notes: "ძლიერი ლოგო/ბრენდინგში; პრემიუმ კლიენტები.",
+    email: "nino@ai2b.ge", login_code: "NINO-4821",
   },
   {
     id: "seed-giorgi", name: "გიორგი მჭედლიძე", category: "დიზაინი/ბრენდინგი",
@@ -27,6 +28,7 @@ const FALLBACK_DESIGNERS: Expert[] = [
     ai_skill: 5, tools: ["Photoshop", "Illustrator", "After Effects", "Canva"], overall_rating: 8.2,
     available: true, city: "თბილისი",
     phone: "+995 599 10 00 02", social: "@giorgi.posters", notes: "სოც. მედია და პოსტერები; სწრაფი მიწოდება.",
+    email: "giorgi@ai2b.ge", login_code: "GIORGI-7304",
   },
   {
     id: "seed-tamar", name: "თამარ ბერიძე", category: "დიზაინი/ბრენდინგი",
@@ -35,6 +37,7 @@ const FALLBACK_DESIGNERS: Expert[] = [
     ai_skill: 9, tools: ["Figma", "Photoshop", "Illustrator", "After Effects"], overall_rating: 9.2,
     available: true, city: "ბათუმი",
     phone: "+995 599 10 00 03", social: "@tamar.designs", notes: "ყველა მიმართულება; AI-workflow-ის ლიდერი გუნდში.",
+    email: "tamar@ai2b.ge", login_code: "TAMAR-1592",
   },
   {
     id: "seed-luka", name: "ლუკა გელაშვილი", category: "დიზაინი/ბრენდინგი",
@@ -43,6 +46,7 @@ const FALLBACK_DESIGNERS: Expert[] = [
     ai_skill: 8, tools: ["Figma", "Canva", "Photoshop"], overall_rating: 7.0,
     available: true, city: "თბილისი",
     phone: "+995 599 10 00 04", social: "@luka.ai.design", notes: "ჯუნიორი, იაფი; ძალიან კარგად იყენებს AI ხელსაწყოებს.",
+    email: "luka@ai2b.ge", login_code: "LUKA-6647",
   },
   {
     id: "seed-ana", name: "ანა ხურციძე", category: "დიზაინი/ბრენდინგი",
@@ -51,14 +55,15 @@ const FALLBACK_DESIGNERS: Expert[] = [
     ai_skill: 6, tools: ["Figma", "Procreate", "Illustrator"], overall_rating: 8.5,
     available: true, city: "ქუთაისი",
     phone: "+995 599 10 00 05", social: "@ana.uiux", notes: "UI/UX და ილუსტრაცია; პროდუქტ-დიზაინის გამოცდილება.",
+    email: "ana@ai2b.ge", login_code: "ANA-3178",
   },
 ];
 
 // Strip internal admin-only fields for any client/chat-facing use.
 export function toPublicExpert(e: Expert): PublicExpert {
-  // Intentionally omit phone, social, notes.
-  const { phone, social, notes, ...pub } = e;
-  void phone; void social; void notes;
+  // Intentionally omit phone, social, notes, and the portal login fields.
+  const { phone, social, notes, email, login_code, ...pub } = e;
+  void phone; void social; void notes; void email; void login_code;
   return pub;
 }
 
@@ -92,4 +97,30 @@ export async function listExperts(): Promise<{
 export async function listPublicExperts(): Promise<PublicExpert[]> {
   const { experts } = await listExperts();
   return experts.map(toPublicExpert);
+}
+
+// Look up a single full expert record by id — SERVER ONLY (used by the expert
+// portal to resolve the logged-in expert from their auth cookie).
+export async function getExpertById(id: string): Promise<Expert | null> {
+  const { experts } = await listExperts();
+  return experts.find((e) => e.id === id) ?? null;
+}
+
+// Resolve a portal login: match email (case-insensitive, trimmed) AND the
+// exact login_code. Returns the full expert on success, else null. SERVER ONLY.
+export async function findExpertByLogin(
+  email: string,
+  code: string
+): Promise<Expert | null> {
+  const e = (email || "").trim().toLowerCase();
+  const c = (code || "").trim();
+  if (!e || !c) return null;
+  const { experts } = await listExperts();
+  return (
+    experts.find(
+      (x) =>
+        (x.email || "").trim().toLowerCase() === e &&
+        (x.login_code || "").trim() === c
+    ) ?? null
+  );
 }

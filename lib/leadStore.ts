@@ -3,7 +3,7 @@
 // kept in a module-level array so the demo never crashes. A clear console
 // warning is logged when the fallback is used.
 import { getSupabaseAdmin, isSupabaseServerConfigured } from "@/lib/supabaseServer";
-import type { Lead, PaymentStatus, OutcomeStatus, AiDraftStatus } from "@/lib/types";
+import type { Lead, PaymentStatus, OutcomeStatus, AiDraftStatus, Attachment } from "@/lib/types";
 
 export interface StoredLead extends Lead {
   id: string;
@@ -76,6 +76,108 @@ export async function saveLead(
 // Exposed for a potential admin/debug view of in-memory leads.
 export function getMemoryLeads(): StoredLead[] {
   return memoryLeads;
+}
+
+// ---------------------------------------------------------------------------
+// Expert-portal views. An expert sees only the TASK — never the client's
+// identity/contact or the raw transcript — so the platform stays in the middle
+// (anti-disintermediation). This is the expert-safe projection of a lead.
+// ---------------------------------------------------------------------------
+export interface ExpertTask {
+  id: string;
+  created_at: string;
+  status: string;
+  business_type?: string;
+  category?: string;
+  required_skills?: string[];
+  ai_relevant?: boolean;
+  summary?: string;
+  advice?: string; // the AI "draft" the expert executes against
+  slots?: Record<string, string>;
+  attachments?: Attachment[];
+  ai_draft_status?: AiDraftStatus; // current rating (so the UI reflects state)
+}
+
+// Strip everything that could identify or route around the client.
+export function toExpertTask(l: StoredLead): ExpertTask {
+  return {
+    id: l.id,
+    created_at: l.created_at,
+    status: l.status,
+    business_type: l.business_type,
+    category: l.category,
+    required_skills: l.required_skills,
+    ai_relevant: l.ai_relevant,
+    summary: l.summary,
+    advice: l.advice,
+    slots: l.slots,
+    attachments: l.attachments,
+    ai_draft_status: l.ai_draft_status,
+  };
+}
+
+// List the tasks assigned to one expert, newest first. Server-only; the caller
+// must have verified the expert's auth cookie first.
+export async function listLeadsForExpert(
+  expertId: string
+): Promise<{ tasks: ExpertTask[]; storage: "supabase" | "memory" }> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { data, error } = await admin
+        .from("leads")
+        .select("*")
+        .eq("assigned_expert_id", expertId)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return { tasks: ((data ?? []) as StoredLead[]).map(toExpertTask), storage: "supabase" };
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE listing expert tasks -> IN-MEMORY fallback. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
+  const mine = memoryLeads
+    .filter((l) => l.assigned_expert_id === expertId)
+    .reverse()
+    .map(toExpertTask);
+  return { tasks: mine, storage: "memory" };
+}
+
+// Fetch a single expert-safe task, but ONLY if it belongs to this expert.
+// Returns null if the task doesn't exist or isn't assigned to them (prevents an
+// expert from reading another expert's task by guessing an id).
+export async function getExpertTask(
+  expertId: string,
+  taskId: string
+): Promise<ExpertTask | null> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { data, error } = await admin
+        .from("leads")
+        .select("*")
+        .eq("id", taskId)
+        .eq("assigned_expert_id", expertId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data ? toExpertTask(data as StoredLead) : null;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE fetching expert task. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
+  const l = memoryLeads.find((x) => x.id === taskId && x.assigned_expert_id === expertId);
+  return l ? toExpertTask(l) : null;
+}
+
+// Ownership check for write paths (submit). True only if the task is assigned
+// to this expert. Server-only.
+export async function expertOwnsTask(expertId: string, taskId: string): Promise<boolean> {
+  return (await getExpertTask(expertId, taskId)) !== null;
 }
 
 // List all leads, newest first. Reads from Supabase when configured, otherwise
