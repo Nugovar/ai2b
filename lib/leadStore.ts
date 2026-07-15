@@ -3,6 +3,7 @@
 // kept in a module-level array so the demo never crashes. A clear console
 // warning is logged when the fallback is used.
 import { getSupabaseAdmin, isSupabaseServerConfigured } from "@/lib/supabaseServer";
+import { DEMO_LEADS } from "@/lib/demoSeed";
 import type { Lead, PaymentStatus, OutcomeStatus, AiDraftStatus, Attachment } from "@/lib/types";
 
 export interface StoredLead extends Lead {
@@ -19,6 +20,13 @@ export type LeadStatus = "new" | "in_progress" | "done";
 // this, a lead written by /api/lead might not be visible to the /admin page.
 const globalStore = globalThis as unknown as { __ai2bMemoryLeads?: StoredLead[] };
 const memoryLeads: StoredLead[] = (globalStore.__ai2bMemoryLeads ??= []);
+
+// Demo mode: pre-populate the empty in-memory store once with realistic leads
+// so the admin panel is fully populated for a walkthrough. Length-guarded so
+// HMR / repeated imports never duplicate. (Never runs unless AI2B_DEMO=1.)
+if (process.env.AI2B_DEMO === "1" && memoryLeads.length === 0) {
+  memoryLeads.push(...DEMO_LEADS.map((l) => ({ ...l })));
+}
 
 export async function saveLead(
   lead: Lead
