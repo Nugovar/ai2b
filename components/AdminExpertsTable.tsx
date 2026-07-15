@@ -14,6 +14,109 @@ function scoreColor(v: number): string {
   return "bg-gray-100 text-gray-600";
 }
 
+type PortalStrings = {
+  email: string; emailPh: string; code: string; noCode: string; generate: string;
+  regenerate: string; copy: string; copied: string; saved: string; hint: string;
+};
+
+// A readable per-expert code: up to 4 latin letters from the name + 4 digits.
+// Math.random is fine here — this runs in the browser, and the code only needs
+// to be non-obvious, not cryptographic.
+function genCode(name: string): string {
+  const base = translit(name).replace(/[^A-Za-z]/g, "").slice(0, 4).toUpperCase() || "AI2B";
+  const n = Math.floor(1000 + Math.random() * 9000);
+  return `${base}-${n}`;
+}
+
+// Portal-login provisioning for one expert: set an email, generate/rotate a
+// code, copy it to hand off. Each change POSTs immediately (optimistic UI).
+function PortalCell({ expert, P }: { expert: Expert; P: PortalStrings }) {
+  const [email, setEmail] = useState(expert.email ?? "");
+  const [code, setCode] = useState(expert.login_code ?? "");
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function save(fields: { email?: string; login_code?: string }): Promise<boolean> {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/expert-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: expert.id, ...fields }),
+      });
+      setBusy(false);
+      if (res.ok) {
+        setSavedFlash(true);
+        setTimeout(() => setSavedFlash(false), 1500);
+        return true;
+      }
+      return false;
+    } catch {
+      setBusy(false);
+      return false;
+    }
+  }
+
+  function onEmailBlur() {
+    const next = email.trim();
+    if (next !== (expert.email ?? "")) void save({ email: next });
+  }
+
+  function regenerate() {
+    const next = genCode(expert.name);
+    setCode(next);
+    void save({ login_code: next });
+  }
+
+  function copy() {
+    if (!code) return;
+    navigator.clipboard?.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  return (
+    <div className="flex min-w-[13rem] flex-col gap-1.5 text-xs">
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        onBlur={onEmailBlur}
+        placeholder={P.emailPh}
+        className="w-full rounded border border-gray-300 px-2 py-1 text-xs text-brand-dark outline-none focus:border-brand-red"
+      />
+      <div className="flex items-center gap-1.5">
+        <code
+          className={`rounded px-2 py-1 font-mono ${code ? "bg-gray-100 text-brand-dark" : "text-gray-400"}`}
+        >
+          {code || P.noCode}
+        </code>
+        {code && (
+          <button
+            onClick={copy}
+            className="rounded border border-gray-300 px-1.5 py-1 text-[11px] text-gray-600 transition-colors hover:border-brand-red hover:text-brand-red"
+            title={P.copy}
+          >
+            {copied ? P.copied : P.copy}
+          </button>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={regenerate}
+          disabled={busy}
+          className="rounded bg-brand-dark px-2 py-1 text-[11px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+        >
+          {code ? P.regenerate : P.generate}
+        </button>
+        {savedFlash && <span className="text-[11px] font-medium text-green-600">{P.saved}</span>}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminExpertsTable({
   experts,
   storage,
@@ -147,6 +250,7 @@ export default function AdminExpertsTable({
                 <th className="px-3 py-3">{E.th.status}</th>
                 <th className="px-3 py-3">{E.th.tools}</th>
                 <th className="px-3 py-3 bg-brand-red/5 text-brand-red">{E.th.internal}</th>
+                <th className="px-3 py-3">{E.th.portal}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -194,6 +298,9 @@ export default function AdminExpertsTable({
                     <p className="whitespace-nowrap">{e.phone ?? "-"}</p>
                     <p className="text-gray-500">{e.social ?? ""}</p>
                     {e.notes && <p className="mt-1 max-w-[16rem] text-gray-500">{e.notes}</p>}
+                  </td>
+                  <td className="px-3 py-3">
+                    <PortalCell expert={e} P={E.portal} />
                   </td>
                 </tr>
               ))}

@@ -147,10 +147,22 @@ interface AdminDict {
   // tie-break criterion labels keyed by machine name from lib/match.ts
   tieBy: Record<string, string>;
   experts: {
-    th: { expert: string; aiSkill: string; skills: string; rating: string; status: string; tools: string; internal: string };
+    th: { expert: string; aiSkill: string; skills: string; rating: string; status: string; tools: string; internal: string; portal: string };
     filters: { category: string; seniority: string; availability: string; sortBy: string; all: string; ratingOpt: string; aiSkillOpt: string; experienceOpt: string };
     available: string;
     busy: string;
+    portal: {
+      email: string;
+      emailPh: string;
+      code: string;
+      noCode: string;
+      generate: string;
+      regenerate: string;
+      copy: string;
+      copied: string;
+      saved: string;
+      hint: string;
+    };
   };
   seniority: Record<string, string>;
   slots: Record<string, string>;
@@ -378,7 +390,7 @@ const ka: Dict = {
     experts: {
       th: {
         expert: "ექსპერტი", aiSkill: "AI უნარი", skills: "უნარები (0-10)", rating: "რეიტინგი",
-        status: "სტატუსი", tools: "ხელსაწყოები", internal: "შიდა (admin only)",
+        status: "სტატუსი", tools: "ხელსაწყოები", internal: "შიდა (admin only)", portal: "პორტალის შესვლა",
       },
       filters: {
         category: "კატეგორია", seniority: "სენიორობა", availability: "ხელმისაწვდომობა", sortBy: "დახარისხება",
@@ -386,6 +398,11 @@ const ka: Dict = {
       },
       available: "თავისუფალი",
       busy: "დაკავებული",
+      portal: {
+        email: "ელფოსტა", emailPh: "ელფოსტა შესვლისთვის", code: "კოდი", noCode: "არ არის",
+        generate: "კოდის გენერაცია", regenerate: "ახალი კოდი", copy: "კოპირება", copied: "დაკოპირდა ✓",
+        saved: "შენახულია ✓", hint: "ექსპერტი ამ ელფოსტითა და კოდით შედის /expert-ზე.",
+      },
     },
     seniority: { junior: "ჯუნიორი", middle: "მიდლი", senior: "სენიორი" },
     slots: {
@@ -621,7 +638,7 @@ const en: Dict = {
     experts: {
       th: {
         expert: "Expert", aiSkill: "AI skill", skills: "Skills (0-10)", rating: "Rating",
-        status: "Status", tools: "Tools", internal: "Internal (admin only)",
+        status: "Status", tools: "Tools", internal: "Internal (admin only)", portal: "Portal login",
       },
       filters: {
         category: "Category", seniority: "Seniority", availability: "Availability", sortBy: "Sort by",
@@ -629,6 +646,11 @@ const en: Dict = {
       },
       available: "Available",
       busy: "Busy",
+      portal: {
+        email: "Email", emailPh: "email for login", code: "Code", noCode: "not set",
+        generate: "Generate code", regenerate: "New code", copy: "Copy", copied: "Copied ✓",
+        saved: "Saved ✓", hint: "The expert signs in at /expert with this email + code.",
+      },
     },
     seniority: { junior: "Junior", middle: "Middle", senior: "Senior" },
     slots: {

@@ -59,6 +59,14 @@ const FALLBACK_DESIGNERS: Expert[] = [
   },
 ];
 
+// Backed by globalThis so admin mutations to the fallback (e.g. rotating a
+// login_code) are visible across route-handler module layers in dev, mirroring
+// leadStore's memoryLeads. In production Supabase is the source of truth and
+// this array is never the read path.
+const fallbackGlobal = globalThis as unknown as { __ai2bFallbackExperts?: Expert[] };
+const fallbackExperts: Expert[] = (fallbackGlobal.__ai2bFallbackExperts ??=
+  FALLBACK_DESIGNERS.map((e) => ({ ...e })));
+
 // Strip internal admin-only fields for any client/chat-facing use.
 export function toPublicExpert(e: Expert): PublicExpert {
   // Intentionally omit phone, social, notes, and the portal login fields.
@@ -82,7 +90,7 @@ export async function listExperts(): Promise<{
       if (error) throw new Error(error.message);
       if (data && data.length > 0) return { experts: data as Expert[], storage: "supabase" };
       // configured but table empty (SQL not run yet) -> show fallback seed
-      return { experts: FALLBACK_DESIGNERS, storage: "memory" };
+      return { experts: fallbackExperts, storage: "memory" };
     } catch (e) {
       console.error(
         "[expertStore] DB UNREACHABLE listing experts -> showing SEED fallback. reason:",
@@ -90,7 +98,7 @@ export async function listExperts(): Promise<{
       );
     }
   }
-  return { experts: FALLBACK_DESIGNERS, storage: "memory" };
+  return { experts: fallbackExperts, storage: "memory" };
 }
 
 // Public (internal-stripped) records for matching / lead-detail use.
@@ -104,6 +112,42 @@ export async function listPublicExperts(): Promise<PublicExpert[]> {
 export async function getExpertById(id: string): Promise<Expert | null> {
   const { experts } = await listExperts();
   return experts.find((e) => e.id === id) ?? null;
+}
+
+// Update an expert's portal-login fields (admin-provisioned). Only the provided
+// fields are written. Returns true on success. SERVER ONLY (admin-gated caller).
+export async function updateExpertLogin(
+  id: string,
+  fields: { email?: string; login_code?: string }
+): Promise<boolean> {
+  const patch: Record<string, string | null> = {};
+  if (fields.email !== undefined) patch.email = fields.email.trim() || null;
+  if (fields.login_code !== undefined) patch.login_code = fields.login_code.trim() || null;
+  if (Object.keys(patch).length === 0) return false;
+
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { error } = await admin.from("experts").update(patch).eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[expertStore] DB UNREACHABLE updating expert login. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+      return false;
+    }
+  }
+  // In-memory fallback: mutate the seed record so the demo reflects the change
+  // for the life of the process.
+  const target = fallbackExperts.find((x) => x.id === id);
+  if (target) {
+    if (fields.email !== undefined) target.email = fields.email.trim() || undefined;
+    if (fields.login_code !== undefined) target.login_code = fields.login_code.trim() || undefined;
+    return true;
+  }
+  return false;
 }
 
 // Resolve a portal login: match email (case-insensitive, trimmed) AND the
