@@ -8,6 +8,7 @@
 // (seed-nino / seed-giorgi / seed-tamar / seed-ana). Dates are fixed strings so
 // the seed is deterministic (no churn across runs).
 import type { StoredLead } from "@/lib/leadStore";
+import type { StoredChatSession } from "@/lib/chatStore";
 
 export const DEMO_LEADS: StoredLead[] = [
   {
@@ -183,5 +184,49 @@ export const DEMO_LEADS: StoredLead[] = [
     amount: 1400,
     outcome: "lost",
     ai_draft_status: "edited",
+  },
+];
+
+// Demo chat sessions for the admin "Chats" tab: one converted to a lead, one
+// dropped off at the advice phase (shows the lost-lead-recovery value).
+export const DEMO_CHATS: StoredChatSession[] = [
+  {
+    id: "demo-chat-converted-1",
+    created_at: "2026-07-14T09:02:00.000Z",
+    updated_at: "2026-07-14T09:10:00.000Z",
+    lang: "ka",
+    phase: "conversion",
+    lead_captured: true,
+    messages: [
+      { role: "assistant", content: "გამარჯობა! რაში დაგეხმაროთ?" },
+      { role: "user", content: "ახალი კაფე ვხსნი და ლოგო მჭირდება" },
+      { role: "assistant", content: "მშვენიერია! როგორი კაფეა და სად?" },
+      { role: "user", content: "specialty ყავა, ვაკეში" },
+      {
+        role: "assistant",
+        content:
+          "გირჩევთ მინიმალისტურ wordmark-ს მარცვლის ნიშნით, თბილი პალიტრით — პრემიუმ specialty განცდისთვის. დაგაკავშიროთ ბრენდინგის ექსპერტთან?",
+      },
+      { role: "user", content: "კი, მინდა" },
+    ],
+  },
+  {
+    id: "demo-chat-dropped-1",
+    created_at: "2026-07-15T11:20:00.000Z",
+    updated_at: "2026-07-15T11:26:00.000Z",
+    lang: "ka",
+    phase: "advice",
+    lead_captured: false,
+    messages: [
+      { role: "assistant", content: "გამარჯობა! რაში დაგეხმაროთ?" },
+      { role: "user", content: "სასტუმრო მაქვს ყაზბეგში, ჯავშნები ცოტაა" },
+      { role: "assistant", content: "სეზონურად როგორია დატვირთვა და რომელ არხებს იყენებთ?" },
+      { role: "user", content: "ძირითადად Booking, სოც. მედია თითქმის არ გვაქვს" },
+      {
+        role: "assistant",
+        content:
+          "პირდაპირი ჯავშნების გასაზრდელად: Instagram-ის ვიზუალური პროფილი + გეო-targeted Meta კამპანია + Google Business პროფილის გაძლიერება. ეს Booking-ის საკომისიოსაც შეამცირებს.",
+      },
+    ],
   },
 ];

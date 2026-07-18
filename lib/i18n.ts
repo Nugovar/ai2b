@@ -106,7 +106,20 @@ interface AdminDict {
   sourceMemory: string;
   sourceSeed: string;
   unprotected: string;
-  tabs: { leads: string; experts: string; metrics: string };
+  tabs: { leads: string; experts: string; metrics: string; chats: string };
+  chatsSubtitle: string;
+  chats: {
+    total: string;
+    empty: string;
+    emptyHint: string;
+    messages: string;
+    leadYes: string;
+    leadNo: string;
+    phases: Record<string, string>;
+    view: string;
+    hide: string;
+    updated: string;
+  };
   logout: string;
   amount: string;
   outcome: { label: string; pending: string; won: string; lost: string };
@@ -209,7 +222,7 @@ const ka: Dict = {
   services: {
     title: "სერვისები",
     subtitle: "ხუთი ძირითადი მიმართულება, ერთ სივრცეში. აღწერე საჭიროება და მოვძებნით შესაბამის ექსპერტს.",
-    subtitleMarketing: "ამჟამად ფოკუსირებული ვართ მარკეტინგზე. დანარჩენი მიმართულებები მალე დაემატება.",
+    subtitleMarketing: "ციფრული მარკეტინგი ერთ ფანჯარაში — აღწერე საჭიროება და მიიღე გადაწყვეტა.",
     comingSoon: "მალე",
     items: [
       { title: "მარკეტინგი", description: "ციფრული რეკლამა, სოციალური ქსელები, კონტენტი და რეელსები. სტრატეგია, რომელიც ზრდის გაყიდვებს." },
@@ -295,7 +308,20 @@ const ka: Dict = {
     sourceMemory: "მეხსიერება (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ პანელი დაუცველია (ADMIN_PASSWORD არ არის დაყენებული)",
-    tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები" },
+    tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები", chats: "ჩატები" },
+    chatsSubtitle: "ყველა საუბარი — კონვერტირებული და მიტოვებული",
+    chats: {
+      total: "სულ",
+      empty: "ჩატები ჯერ არ არის",
+      emptyHint: "ყველა საუბარი ავტომატურად ინახება აქ — ლიდად ქცეულიც და მიტოვებულიც.",
+      messages: "შეტყობინება",
+      leadYes: "ლიდი აღებულია",
+      leadNo: "ლიდის გარეშე",
+      phases: { discovery: "გაცნობა", advice: "რჩევა", conversion: "კონვერსია" },
+      view: "ნახვა",
+      hide: "დახურვა",
+      updated: "ბოლო აქტივობა",
+    },
     logout: "გასვლა",
     amount: "თანხა (₾)",
     outcome: { label: "შედეგი", pending: "მიმდინარე", won: "მოგებული", lost: "წაგებული" },
@@ -457,7 +483,7 @@ const en: Dict = {
   services: {
     title: "Services",
     subtitle: "Five core directions in one place. Describe your need and we'll match you with the right expert.",
-    subtitleMarketing: "We're focused on marketing right now. The other directions are coming soon.",
+    subtitleMarketing: "Digital marketing in one place — describe your need and get a solution.",
     comingSoon: "Coming soon",
     items: [
       { title: "Marketing", description: "Digital ads, social media, content and reels. A strategy that grows your sales." },
@@ -543,7 +569,20 @@ const en: Dict = {
     sourceMemory: "in-memory (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ Panel is unprotected (ADMIN_PASSWORD not set)",
-    tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics" },
+    tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics", chats: "Chats" },
+    chatsSubtitle: "Every conversation — converted and dropped",
+    chats: {
+      total: "Total",
+      empty: "No chats yet",
+      emptyHint: "Every conversation is saved here automatically — converted to a lead or not.",
+      messages: "messages",
+      leadYes: "Lead captured",
+      leadNo: "No lead",
+      phases: { discovery: "Discovery", advice: "Advice", conversion: "Conversion" },
+      view: "View",
+      hide: "Hide",
+      updated: "Last activity",
+    },
     logout: "Log out",
     amount: "Amount (GEL)",
     outcome: { label: "Outcome", pending: "Pending", won: "Won", lost: "Lost" },

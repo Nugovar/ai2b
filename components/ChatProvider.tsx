@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -72,6 +73,21 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(DEFAULT_LANG);
+
+  // Chat-session id for server-side persistence. Generated lazily on the first
+  // real turn (client-only, so no SSR/hydration concerns) and kept for the
+  // whole page visit — every turn upserts the same session row.
+  const sessionIdRef = useRef("");
+  function getSessionId(): string {
+    if (!sessionIdRef.current) {
+      const uuid =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      sessionIdRef.current = `s_${uuid.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 40)}`;
+    }
+    return sessionIdRef.current;
+  }
   const t = useMemo(() => getDict(lang), [lang]);
 
   // floating panel open state
@@ -247,7 +263,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: nextMessages, lang }),
+        body: JSON.stringify({ messages: nextMessages, lang, sessionId: getSessionId() }),
       });
       const data = (await res.json()) as ChatApiResponse;
       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
@@ -319,6 +335,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           category: control.category,
           required_skills: control.required_skills,
           ai_relevant: control.ai_relevant,
+          // Ties the lead back to its saved chat session (lead_captured flag).
+          sessionId: getSessionId(),
         }),
       });
       const data = (await res.json()) as { ok: boolean; error?: string };

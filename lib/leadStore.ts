@@ -190,6 +190,67 @@ export async function expertOwnsTask(expertId: string, taskId: string): Promise<
   return (await getExpertTask(expertId, taskId)) !== null;
 }
 
+// ---------------------------------------------------------------------------
+// Client (business) portal views. The client sees THEIR OWN requests: status,
+// advice, payment, deliverables — but NEVER the expert's identity (the
+// platform stays in the middle; experts are anonymous-but-accountable).
+// ---------------------------------------------------------------------------
+export interface ClientRequest {
+  id: string;
+  created_at: string;
+  status: string;
+  business_type?: string;
+  category?: string;
+  summary?: string;
+  advice?: string;
+  expert_assigned: boolean; // anonymized — just "an expert is on it"
+  payment_status?: PaymentStatus;
+  amount?: number;
+  deliverables?: Attachment[];
+}
+
+export function toClientRequest(l: StoredLead): ClientRequest {
+  return {
+    id: l.id,
+    created_at: l.created_at,
+    status: l.status,
+    business_type: l.business_type,
+    category: l.category,
+    summary: l.summary,
+    advice: l.advice,
+    expert_assigned: Boolean(l.assigned_expert_id),
+    payment_status: l.payment_status,
+    amount: l.amount,
+    deliverables: l.deliverables,
+  };
+}
+
+// All leads left with a given email (case-insensitive). Used by client-portal
+// auth + the client's own request list. Server-only.
+export async function listLeadsByEmail(email: string): Promise<StoredLead[]> {
+  const e = (email || "").trim().toLowerCase();
+  if (!e) return [];
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      // ilike with no wildcards = exact match, case-insensitive.
+      const { data, error } = await admin
+        .from("leads")
+        .select("*")
+        .ilike("email", e)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as StoredLead[];
+    } catch (err) {
+      console.error(
+        "[leadStore] DB UNREACHABLE listing client leads -> IN-MEMORY fallback. reason:",
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  }
+  return memoryLeads.filter((l) => (l.email || "").trim().toLowerCase() === e).reverse();
+}
+
 // List all leads, newest first. Reads from Supabase when configured, otherwise
 // from the in-memory fallback. Never throws.
 export async function listLeads(): Promise<{
