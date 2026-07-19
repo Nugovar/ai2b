@@ -87,6 +87,7 @@ interface Dict {
     errPhone: string;
     errEmail: string;
     notConfigured: string;
+    rateLimited: string;
   };
   admin: AdminDict;
 }
@@ -97,6 +98,7 @@ interface AdminDict {
   panelTitle: string;
   leadsSubtitle: string;
   expertsSubtitle: string;
+  metricsSubtitle: string;
   backToSite: string;
   total: string;
   source: string;
@@ -104,8 +106,21 @@ interface AdminDict {
   sourceMemory: string;
   sourceSeed: string;
   unprotected: string;
-  tabs: { leads: string; experts: string };
-  login: { title: string; subtitle: string; placeholder: string; button: string; wrong: string };
+  tabs: { leads: string; experts: string; metrics: string };
+  logout: string;
+  amount: string;
+  outcome: { label: string; pending: string; won: string; lost: string };
+  aiDraft: { label: string; unset: string; accepted: string; edited: string; rejected: string };
+  metrics: {
+    kpiTotal: string; kpiLast30: string; kpiPaidConv: string;
+    kpiCollected: string; kpiOutstanding: string; kpiPipeline: string;
+    funnelTitle: string; fCaptured: string; fAssigned: string; fDone: string; fPaid: string;
+    byCategory: string; byExpert: string; payment: string; aiRelevant: string;
+    noExperts: string; noData: string; gel: string;
+    kpiAcceptance: string; acceptanceHint: string; kpiWinRate: string;
+    outcomeTitle: string; aiDraftTitle: string; rated: string;
+  };
+  login: { title: string; subtitle: string; placeholder: string; button: string; wrong: string; loading: string };
   emptyTitle: string;
   emptyHint: string;
   th: {
@@ -123,6 +138,11 @@ interface AdminDict {
     noContext: string; adviceNot: string; transcriptNot: string; noMatches: string;
     topMatch: string; phase2: string; years: string; avg: string; ai: string;
     tiePrefix: string; attachments: string;
+  };
+  assign: {
+    title: string; assignBtn: string; assigned: string; assignedTo: string;
+    notAssigned: string; unassign: string; payment: string;
+    pay: { unpaid: string; invoiced: string; paid: string };
   };
   // tie-break criterion labels keyed by machine name from lib/match.ts
   tieBy: Record<string, string>;
@@ -249,11 +269,13 @@ const ka: Dict = {
     errPhone: "გთხოვთ, შეიყვანოთ სწორი ტელეფონის ნომერი.",
     errEmail: "გთხოვთ, შეიყვანოთ სწორი ელ. ფოსტა.",
     notConfigured: "ჩატი ჯერ არ არის კონფიგურირებული (OPENAI_API_KEY აკლია). დაამატეთ გასაღები .env.local-ში.",
+    rateLimited: "ბევრი მოთხოვნა მოვიდა ერთ დროს. გთხოვთ, დაელოდოთ წამით და სცადოთ ხელახლა. 🙏",
   },
   admin: {
     panelTitle: "ადმინ პანელი",
     leadsSubtitle: "ჩატიდან მიღებული ლიდები",
     expertsSubtitle: "ექსპერტების დირექტორია",
+    metricsSubtitle: "მეტრიკები და შემოსავალი",
     backToSite: "← საიტზე დაბრუნება",
     total: "სულ",
     source: "მონაცემთა წყარო",
@@ -261,13 +283,50 @@ const ka: Dict = {
     sourceMemory: "მეხსიერება (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ პანელი დაუცველია (ADMIN_PASSWORD არ არის დაყენებული)",
-    tabs: { leads: "ლიდები", experts: "ექსპერტები" },
+    tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები" },
+    logout: "გასვლა",
+    amount: "თანხა (₾)",
+    outcome: { label: "შედეგი", pending: "მიმდინარე", won: "მოგებული", lost: "წაგებული" },
+    aiDraft: {
+      label: "AI-ბრიფის ხარისხი",
+      unset: "არ არის შეფასებული",
+      accepted: "მიღებული (როგორც არის)",
+      edited: "შესწორებული",
+      rejected: "უარყოფილი",
+    },
+    metrics: {
+      kpiTotal: "სულ ლიდები",
+      kpiLast30: "ბოლო 30 დღე",
+      kpiPaidConv: "გადახდამდე კონვერსია",
+      kpiCollected: "მიღებული შემოსავალი",
+      kpiOutstanding: "მოსალოდნელი (ინვოისი)",
+      kpiPipeline: "მიმდინარე pipeline",
+      funnelTitle: "ფანელი",
+      fCaptured: "მიღებული",
+      fAssigned: "მინიჭებული",
+      fDone: "დასრულებული",
+      fPaid: "გადახდილი",
+      byCategory: "კატეგორიის მიხედვით",
+      byExpert: "ექსპერტის დატვირთვა",
+      payment: "გადახდის სტატუსი",
+      aiRelevant: "AI-რელევანტური",
+      noExperts: "ჯერ არავისზეა მინიჭებული",
+      noData: "ჯერ მონაცემი არ არის",
+      gel: "₾",
+      kpiAcceptance: "AI-დრაფტის მიღება ⭐",
+      acceptanceHint: "მთავარი მეტრიკა — software თუ agency",
+      kpiWinRate: "მოგების %",
+      outcomeTitle: "შედეგები",
+      aiDraftTitle: "AI-ბრიფის ხარისხი",
+      rated: "შეფასებული",
+    },
     login: {
       title: "ადმინ პანელი",
       subtitle: "შეიყვანეთ პაროლი გასაგრძელებლად",
       placeholder: "პაროლი",
       button: "შესვლა",
       wrong: "პაროლი არასწორია. სცადეთ ხელახლა.",
+      loading: "შესვლა...",
     },
     emptyTitle: "ჯერ ლიდები არ არის",
     emptyHint: "ჩატში ექსპერტის გამოძახების შემდეგ ლიდები აქ გამოჩნდება.",
@@ -297,6 +356,16 @@ const ka: Dict = {
       ai: "AI",
       tiePrefix: "ტოლი ქულა → გადაწყვიტა:",
       attachments: "მიმაგრებული ფაილები",
+    },
+    assign: {
+      title: "მინიჭება და გადახდა",
+      assignBtn: "მინიჭება",
+      assigned: "მინიჭებულია ✓",
+      assignedTo: "მინიჭებული:",
+      notAssigned: "ჯერ არავისზეა მინიჭებული",
+      unassign: "მოხსნა",
+      payment: "გადახდა",
+      pay: { unpaid: "გადაუხდელი", invoiced: "ინვოისი გაგზავნილი", paid: "გადახდილი" },
     },
     tieBy: {
       task_score: "დავალების ქულა",
@@ -443,11 +512,13 @@ const en: Dict = {
     errPhone: "Please enter a valid phone number.",
     errEmail: "Please enter a valid email.",
     notConfigured: "The chat is not configured yet (OPENAI_API_KEY is missing). Add the key to .env.local.",
+    rateLimited: "Too many requests at once. Please wait a moment and try again. 🙏",
   },
   admin: {
     panelTitle: "Admin panel",
     leadsSubtitle: "Leads captured from the chat",
     expertsSubtitle: "Experts directory",
+    metricsSubtitle: "Metrics & revenue",
     backToSite: "← Back to site",
     total: "Total",
     source: "Data source",
@@ -455,13 +526,50 @@ const en: Dict = {
     sourceMemory: "in-memory (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ Panel is unprotected (ADMIN_PASSWORD not set)",
-    tabs: { leads: "Leads", experts: "Experts" },
+    tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics" },
+    logout: "Log out",
+    amount: "Amount (GEL)",
+    outcome: { label: "Outcome", pending: "Pending", won: "Won", lost: "Lost" },
+    aiDraft: {
+      label: "AI-draft quality",
+      unset: "Not rated",
+      accepted: "Accepted (as-is)",
+      edited: "Edited",
+      rejected: "Rejected",
+    },
+    metrics: {
+      kpiTotal: "Total leads",
+      kpiLast30: "Last 30 days",
+      kpiPaidConv: "Paid conversion",
+      kpiCollected: "Revenue collected",
+      kpiOutstanding: "Outstanding (invoiced)",
+      kpiPipeline: "Active pipeline",
+      funnelTitle: "Funnel",
+      fCaptured: "Captured",
+      fAssigned: "Assigned",
+      fDone: "Done",
+      fPaid: "Paid",
+      byCategory: "By category",
+      byExpert: "Expert workload",
+      payment: "Payment status",
+      aiRelevant: "AI-relevant",
+      noExperts: "No assignments yet",
+      noData: "No data yet",
+      gel: "₾",
+      kpiAcceptance: "AI-draft acceptance ⭐",
+      acceptanceHint: "North-star — software vs agency",
+      kpiWinRate: "Win rate",
+      outcomeTitle: "Outcomes",
+      aiDraftTitle: "AI-draft quality",
+      rated: "rated",
+    },
     login: {
       title: "Admin panel",
       subtitle: "Enter the password to continue",
       placeholder: "Password",
       button: "Sign in",
       wrong: "Wrong password. Please try again.",
+      loading: "Signing in...",
     },
     emptyTitle: "No leads yet",
     emptyHint: "Leads appear here after the chat hands off to an expert.",
@@ -491,6 +599,16 @@ const en: Dict = {
       ai: "AI",
       tiePrefix: "tie on score → decided by:",
       attachments: "Attached files",
+    },
+    assign: {
+      title: "Assignment & payment",
+      assignBtn: "Assign",
+      assigned: "Assigned ✓",
+      assignedTo: "Assigned to:",
+      notAssigned: "Not assigned yet",
+      unassign: "Unassign",
+      payment: "Payment",
+      pay: { unpaid: "Unpaid", invoiced: "Invoiced", paid: "Paid" },
     },
     tieBy: {
       task_score: "task score",

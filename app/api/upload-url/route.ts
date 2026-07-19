@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSignedUpload, type SignedUpload } from "@/lib/storageStore";
 import { getDict, type Lang } from "@/lib/i18n";
 import { MAX_BYTES, MAX_FILES, isAllowedType } from "@/lib/uploadLimits";
+import { rateLimit, clientIp } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,14 @@ interface FileMeta {
 export async function POST(req: NextRequest) {
   const lang: Lang = req.nextUrl.searchParams.get("lang") === "en" ? "en" : "ka";
   const t = getDict(lang).chat;
+
+  const rl = rateLimit(`upload-url:${clientIp(req)}`, 15, 60_000); // 15 / min
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: t.rateLimited },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+    );
+  }
 
   try {
     const body = (await req.json().catch(() => ({}))) as { files?: FileMeta[] };

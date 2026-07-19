@@ -65,7 +65,31 @@ export interface Lead {
   category?: string;
   required_skills?: string[];
   ai_relevant?: boolean;
+  // Assignment + payment workflow (set from the admin panel, not the chat).
+  assigned_expert_id?: string;
+  assigned_expert_name?: string; // denormalized for display
+  payment_status?: PaymentStatus;
+  amount?: number; // deal value in GEL (whole lari), set in the admin panel
+  // Outcome tracking (closes the input -> action -> outcome loop).
+  outcome?: OutcomeStatus;
+  // The north-star signal: how usable the AI's brief/advice (the "draft") was
+  // when the expert executed the task. Recorded in admin during Phase 1 (manual);
+  // becomes expert-reported once experts are in the loop.
+  ai_draft_status?: AiDraftStatus;
 }
+
+// Payment lifecycle for an assigned task.
+export type PaymentStatus = "unpaid" | "invoiced" | "paid";
+
+// Business outcome of a captured lead/task (beyond the workflow status).
+export type OutcomeStatus = "pending" | "won" | "lost";
+
+// How the AI's brief/advice performed as an execution "draft". This is the
+// metric that decides software- vs agency-margined (AI-draft acceptance rate):
+//   accepted = expert used it essentially as-is (software-margined signal)
+//   edited   = expert reworked it significantly (partial)
+//   rejected = useless, expert started from scratch (agency-margined signal)
+export type AiDraftStatus = "unset" | "accepted" | "edited" | "rejected";
 
 // ============================================================================
 // Experts directory (skill-based matching). DESIGNERS are the first test
