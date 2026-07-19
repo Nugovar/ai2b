@@ -35,12 +35,17 @@ export default function AdminActivityTable({
   const [events, setEvents] = useState<StoredAiEvent[]>(initialEvents);
   const [storage, setStorage] = useState<"supabase" | "memory">(initialStorage);
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [pollError, setPollError] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(async () => {
       try {
         const res = await fetch("/api/admin/ai-events");
-        if (!res.ok) return;
+        if (!res.ok) {
+          setPollError(true);
+          return;
+        }
         const data = (await res.json()) as {
           ok: boolean;
           events?: StoredAiEvent[];
@@ -49,9 +54,14 @@ export default function AdminActivityTable({
         if (data.ok && data.events) {
           setEvents(data.events);
           if (data.storage) setStorage(data.storage);
+          setLastUpdated(new Date());
+          setPollError(false);
+        } else {
+          setPollError(true);
         }
       } catch {
         // Best-effort polling — a failed tick just waits for the next one.
+        setPollError(true);
       }
     }, POLL_MS);
     return () => clearInterval(timer);
@@ -107,10 +117,13 @@ export default function AdminActivityTable({
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <span className="rounded-full bg-brand-dark px-3 py-1 text-sm font-semibold text-white">
-            {C.total}: {visible.length}
+            {C.total}: {events.length}
           </span>
           <span className="text-xs text-gray-500">
             {A.source}: {storage === "supabase" ? A.sourceSupabase : A.sourceMemory}
+          </span>
+          <span className={`text-xs ${pollError ? "font-semibold text-brand-red" : "text-gray-400"}`}>
+            {pollError ? "⚠ refresh failed" : `· ${lastUpdated.toLocaleTimeString()}`}
           </span>
         </div>
 
