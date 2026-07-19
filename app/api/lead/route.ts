@@ -2,6 +2,7 @@
 // the lead store (Supabase if configured, in-memory fallback otherwise).
 import { NextRequest, NextResponse } from "next/server";
 import { saveLead } from "@/lib/leadStore";
+import { logAiEvent } from "@/lib/aiEvents";
 import { markChatLeadCaptured, isValidSessionId } from "@/lib/chatStore";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
 import type { Lead } from "@/lib/types";
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
     const required_skills = Array.isArray(body.required_skills)
       ? body.required_skills.slice(0, 12)
       : undefined;
+    const category = clamp(body.category, 200);
 
     const result = await saveLead({
       name,
@@ -72,11 +74,25 @@ export async function POST(req: NextRequest) {
       slots: body.slots,
       advice: clamp(body.advice, 8000),
       conversation,
-      category: clamp(body.category, 200),
+      category,
       required_skills,
       ai_relevant: body.ai_relevant,
       attachments,
     });
+
+    // Log the AI's routing decision — the category/skills it assigned during
+    // discovery — once, at the moment the lead is captured.
+    if (category) {
+      await logAiEvent({
+        type: "match_decision",
+        ref_id: result.id,
+        payload: {
+          category,
+          required_skills: required_skills ?? [],
+          ai_relevant: Boolean(body.ai_relevant),
+        },
+      });
+    }
 
     // Flag the originating chat session as converted (best-effort).
     const sessionId = (body as { sessionId?: unknown }).sessionId;

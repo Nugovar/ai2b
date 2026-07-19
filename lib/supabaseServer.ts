@@ -35,8 +35,16 @@ const timeoutFetch: typeof fetch = (input, init) => {
 export function getSupabaseAdmin(): SupabaseClient | null {
   if (process.env.AI2B_DEMO === "1") return null;
   if (!url || !secretKey) return null;
-  return createClient(url, secretKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-    global: { fetch: timeoutFetch },
-  });
+  try {
+    return createClient(url, secretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: timeoutFetch },
+    });
+  } catch (e) {
+    console.error(
+      "[supabaseServer] createClient() threw -> treating as unconfigured. reason:",
+      e instanceof Error ? e.message : String(e)
+    );
+    return null;
+  }
 }

@@ -7,7 +7,7 @@ import { useApp } from "@/components/ChatProvider";
 export default function AdminTabs({
   active,
 }: {
-  active: "leads" | "experts" | "metrics" | "chats";
+  active: "leads" | "experts" | "metrics" | "chats" | "activity";
 }) {
   const { t } = useApp();
   const tabs = [
@@ -15,6 +15,7 @@ export default function AdminTabs({
     { id: "experts" as const, label: t.admin.tabs.experts, href: "/admin/experts" },
     { id: "metrics" as const, label: t.admin.tabs.metrics, href: "/admin/metrics" },
     { id: "chats" as const, label: t.admin.tabs.chats, href: "/admin/chats" },
+    { id: "activity" as const, label: t.admin.tabs.activity, href: "/admin/activity" },
   ];
 
   async function logout() {

@@ -14,6 +14,7 @@ import {
   updateLeadDeliverables,
 } from "@/lib/leadStore";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
+import { logAiEvent } from "@/lib/aiEvents";
 import { MAX_FILES } from "@/lib/uploadLimits";
 import type { AiDraftStatus, Attachment } from "@/lib/types";
 
@@ -92,6 +93,12 @@ export async function POST(req: NextRequest) {
     // 404 here almost always means the migration hasn't run (missing column).
     return NextResponse.json({ ok: false, error: "write_failed" }, { status: 404 });
   }
+
+  await logAiEvent({
+    type: "draft_rated",
+    ref_id: taskId,
+    payload: { rating, expert_id: expert.id },
+  });
 
   return NextResponse.json({ ok: true });
 }
