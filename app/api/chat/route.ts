@@ -309,6 +309,8 @@ function classifyChatErrorKind(err: unknown): string {
   if (e?.status === 429) return "rate_limit";
   if (e?.status === 401) return "auth";
   if (e?.status === 400) return "bad_request";
+  if (e?.status === 408) return "timeout";
+  if (e?.status === 409) return "conflict";
   if (typeof e?.status === "number" && e.status >= 500) return "openai_5xx";
   return "unknown";
 }

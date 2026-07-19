@@ -37,8 +37,9 @@ if (process.env.AI2B_DEMO === "1" && memoryEvents.length === 0) {
   memoryEvents.push(...DEMO_AI_EVENTS.map((e) => ({ ...e })));
 }
 
-// Fire-and-forget logger. Never throws — a logging failure must not affect the
-// caller's actual response (same contract as saveChatSession).
+// Never throws — callers await this for reliability (same contract as
+// saveChatSession: a logging failure falls back to memory rather than
+// propagating), not because it's unawaited fire-and-forget.
 export async function logAiEvent(e: {
   type: AiEventType;
   ref_id?: string;
