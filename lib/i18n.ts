@@ -106,7 +106,7 @@ interface AdminDict {
   sourceMemory: string;
   sourceSeed: string;
   unprotected: string;
-  tabs: { leads: string; experts: string; metrics: string; chats: string };
+  tabs: { leads: string; experts: string; metrics: string; chats: string; activity: string };
   chatsSubtitle: string;
   chats: {
     total: string;
@@ -119,6 +119,30 @@ interface AdminDict {
     view: string;
     hide: string;
     updated: string;
+  };
+  activitySubtitle: string;
+  activity: {
+    total: string;
+    empty: string;
+    emptyHint: string;
+    filterAll: string;
+    filterChat: string;
+    filterErrors: string;
+    filterRouting: string;
+    filterFeedback: string;
+    typeChatReply: string;
+    typeChatError: string;
+    typeMatchDecision: string;
+    typeDraftRated: string;
+    model: string;
+    latency: string;
+    tokensIn: string;
+    tokensOut: string;
+    cost: string;
+    errorKind: string;
+    category: string;
+    skills: string;
+    expert: string;
   };
   logout: string;
   amount: string;
@@ -308,7 +332,7 @@ const ka: Dict = {
     sourceMemory: "მეხსიერება (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ პანელი დაუცველია (ADMIN_PASSWORD არ არის დაყენებული)",
-    tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები", chats: "ჩატები" },
+    tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები", chats: "ჩატები", activity: "AI აქტივობა" },
     chatsSubtitle: "ყველა საუბარი — კონვერტირებული და მიტოვებული",
     chats: {
       total: "სულ",
@@ -321,6 +345,30 @@ const ka: Dict = {
       view: "ნახვა",
       hide: "დახურვა",
       updated: "ბოლო აქტივობა",
+    },
+    activitySubtitle: "AI-ს გადაწყვეტილებები, ტექნიკური მეტრიკები და ექსპერტის უკუკავშირი — რეალურ დროში",
+    activity: {
+      total: "სულ",
+      empty: "აქტივობა ჯერ არ არის",
+      emptyHint: "AI-ს ყოველი პასუხი, routing გადაწყვეტილება და ექსპერტის შეფასება აქ გამოჩნდება ავტომატურად.",
+      filterAll: "ყველა",
+      filterChat: "ჩატი",
+      filterErrors: "შეცდომები",
+      filterRouting: "როუთინგი",
+      filterFeedback: "ექსპერტის უკუკავშირი",
+      typeChatReply: "AI პასუხი",
+      typeChatError: "AI შეცდომა",
+      typeMatchDecision: "როუთინგის გადაწყვეტილება",
+      typeDraftRated: "ბრიფის შეფასება",
+      model: "მოდელი",
+      latency: "ლატენსია",
+      tokensIn: "input ტოკენი",
+      tokensOut: "output ტოკენი",
+      cost: "ხარჯი (≈$)",
+      errorKind: "შეცდომის ტიპი",
+      category: "კატეგორია",
+      skills: "საჭირო უნარები",
+      expert: "ექსპერტი",
     },
     logout: "გასვლა",
     amount: "თანხა (₾)",
@@ -569,7 +617,7 @@ const en: Dict = {
     sourceMemory: "in-memory (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ Panel is unprotected (ADMIN_PASSWORD not set)",
-    tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics", chats: "Chats" },
+    tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics", chats: "Chats", activity: "AI Activity" },
     chatsSubtitle: "Every conversation — converted and dropped",
     chats: {
       total: "Total",
@@ -582,6 +630,30 @@ const en: Dict = {
       view: "View",
       hide: "Hide",
       updated: "Last activity",
+    },
+    activitySubtitle: "AI decisions, technical metrics, and expert feedback — in real time",
+    activity: {
+      total: "Total",
+      empty: "No activity yet",
+      emptyHint: "Every AI reply, routing decision, and expert rating appears here automatically.",
+      filterAll: "All",
+      filterChat: "Chat",
+      filterErrors: "Errors",
+      filterRouting: "Routing",
+      filterFeedback: "Expert feedback",
+      typeChatReply: "AI reply",
+      typeChatError: "AI error",
+      typeMatchDecision: "Routing decision",
+      typeDraftRated: "Draft rated",
+      model: "Model",
+      latency: "Latency",
+      tokensIn: "Input tokens",
+      tokensOut: "Output tokens",
+      cost: "Cost (≈$)",
+      errorKind: "Error kind",
+      category: "Category",
+      skills: "Required skills",
+      expert: "Expert",
     },
     logout: "Log out",
     amount: "Amount (GEL)",
