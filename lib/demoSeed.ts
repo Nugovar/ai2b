@@ -9,6 +9,7 @@
 // the seed is deterministic (no churn across runs).
 import type { StoredLead } from "@/lib/leadStore";
 import type { StoredChatSession } from "@/lib/chatStore";
+import type { StoredAiEvent } from "@/lib/aiEvents";
 
 export const DEMO_LEADS: StoredLead[] = [
   {
@@ -228,5 +229,178 @@ export const DEMO_CHATS: StoredChatSession[] = [
           "პირდაპირი ჯავშნების გასაზრდელად: Instagram-ის ვიზუალური პროფილი + გეო-targeted Meta კამპანია + Google Business პროფილის გაძლიერება. ეს Booking-ის საკომისიოსაც შეამცირებს.",
       },
     ],
+  },
+];
+
+// Demo AI Activity Log events: 12 distinct simulated users/sessions across all
+// 4 event types, so the admin "AI Activity" tab is populated the moment it's
+// opened. Reuses DEMO_LEADS ids (routing + expert-feedback events) and
+// DEMO_CHATS ids (chat technical events), plus a few new session ids for
+// error-path variety. Fixed timestamps, same convention as DEMO_LEADS/DEMO_CHATS.
+export const DEMO_AI_EVENTS: StoredAiEvent[] = [
+  {
+    id: "evt-demo-01",
+    created_at: "2026-07-10T09:25:45.000Z",
+    type: "match_decision",
+    ref_id: "demo-8",
+    payload: { category: "დიზაინი/ბრენდინგი", required_skills: ["logo", "ui_ux"], ai_relevant: false },
+  },
+  {
+    id: "evt-demo-02",
+    created_at: "2026-07-10T14:05:00.000Z",
+    type: "draft_rated",
+    ref_id: "demo-8",
+    payload: { rating: "edited", expert_id: "seed-tamar" },
+  },
+  {
+    id: "evt-demo-03",
+    created_at: "2026-07-11T13:50:35.000Z",
+    type: "match_decision",
+    ref_id: "demo-7",
+    payload: { category: "დიზაინი/ბრენდინგი", required_skills: ["logo", "illustration"], ai_relevant: false },
+  },
+  {
+    id: "evt-demo-04",
+    created_at: "2026-07-11T19:20:00.000Z",
+    type: "draft_rated",
+    ref_id: "demo-7",
+    payload: { rating: "accepted", expert_id: "seed-ana" },
+  },
+  {
+    id: "evt-demo-05",
+    created_at: "2026-07-12T11:05:25.000Z",
+    type: "match_decision",
+    ref_id: "demo-3",
+    payload: { category: "დიზაინი/ბრენდინგი", required_skills: ["ui_ux", "illustration"], ai_relevant: false },
+  },
+  {
+    id: "evt-demo-06",
+    created_at: "2026-07-12T16:45:00.000Z",
+    type: "draft_rated",
+    ref_id: "demo-3",
+    payload: { rating: "rejected", expert_id: "seed-ana" },
+  },
+  {
+    id: "evt-demo-07",
+    created_at: "2026-07-13T14:40:20.000Z",
+    type: "match_decision",
+    ref_id: "demo-2",
+    payload: { category: "დიზაინი/ბრენდინგი", required_skills: ["social_media", "poster"], ai_relevant: true },
+  },
+  {
+    id: "evt-demo-08",
+    created_at: "2026-07-13T18:10:00.000Z",
+    type: "draft_rated",
+    ref_id: "demo-2",
+    payload: { rating: "edited", expert_id: "seed-giorgi" },
+  },
+  {
+    id: "evt-demo-09",
+    created_at: "2026-07-13T20:15:10.000Z",
+    type: "chat_error",
+    ref_id: "demo-chat-quick-1",
+    payload: { error_kind: "timeout", message: "Request timed out after 15000ms", model: "gpt-4o-mini" },
+  },
+  {
+    id: "evt-demo-10",
+    created_at: "2026-07-14T09:02:40.000Z",
+    type: "chat_reply",
+    ref_id: "demo-chat-converted-1",
+    payload: {
+      model: "gpt-4o-mini", latency_ms: 1450, tokens_in: 620, tokens_out: 180,
+      cost_estimate: 0.000201, lang: "ka", phase: "discovery",
+    },
+  },
+  {
+    id: "evt-demo-11",
+    created_at: "2026-07-14T09:06:10.000Z",
+    type: "chat_reply",
+    ref_id: "demo-chat-converted-1",
+    payload: {
+      model: "gpt-4o-mini", latency_ms: 1680, tokens_in: 810, tokens_out: 210,
+      cost_estimate: 0.000248, lang: "ka", phase: "advice",
+    },
+  },
+  {
+    id: "evt-demo-12",
+    created_at: "2026-07-14T09:09:50.000Z",
+    type: "chat_reply",
+    ref_id: "demo-chat-converted-1",
+    payload: {
+      model: "gpt-4o-mini", latency_ms: 1120, tokens_in: 960, tokens_out: 140,
+      cost_estimate: 0.000228, lang: "ka", phase: "conversion",
+    },
+  },
+  {
+    id: "evt-demo-13",
+    created_at: "2026-07-14T09:12:30.000Z",
+    type: "match_decision",
+    ref_id: "demo-1",
+    payload: { category: "დიზაინი/ბრენდინგი", required_skills: ["logo", "branding"], ai_relevant: false },
+  },
+  {
+    id: "evt-demo-14",
+    created_at: "2026-07-14T15:40:00.000Z",
+    type: "draft_rated",
+    ref_id: "demo-1",
+    payload: { rating: "accepted", expert_id: "seed-nino" },
+  },
+  {
+    id: "evt-demo-15",
+    created_at: "2026-07-14T16:20:15.000Z",
+    type: "match_decision",
+    ref_id: "demo-4",
+    payload: { category: "დიზაინი/ბრენდინგი", required_skills: ["logo", "business_card"], ai_relevant: false },
+  },
+  {
+    id: "evt-demo-16",
+    created_at: "2026-07-15T08:02:40.000Z",
+    type: "match_decision",
+    ref_id: "demo-5",
+    payload: { category: "დიზაინი/ბრენდინგი", required_skills: ["branding", "poster"], ai_relevant: false },
+  },
+  {
+    id: "evt-demo-17",
+    created_at: "2026-07-15T10:30:00.000Z",
+    type: "chat_reply",
+    ref_id: "demo-chat-urbancuts-1",
+    payload: {
+      model: "gpt-4o-mini", latency_ms: 1580, tokens_in: 700, tokens_out: 190,
+      cost_estimate: 0.000219, lang: "ka", phase: "discovery",
+    },
+  },
+  {
+    id: "evt-demo-18",
+    created_at: "2026-07-15T10:33:20.000Z",
+    type: "chat_error",
+    ref_id: "demo-chat-urbancuts-1",
+    payload: { error_kind: "rate_limit", message: "429 Too Many Requests", model: "gpt-4o-mini" },
+  },
+  {
+    id: "evt-demo-19",
+    created_at: "2026-07-15T10:35:20.000Z",
+    type: "match_decision",
+    ref_id: "demo-6",
+    payload: { category: "Marketing", required_skills: ["social_media"], ai_relevant: true },
+  },
+  {
+    id: "evt-demo-20",
+    created_at: "2026-07-15T11:20:35.000Z",
+    type: "chat_reply",
+    ref_id: "demo-chat-dropped-1",
+    payload: {
+      model: "gpt-4o-mini", latency_ms: 1390, tokens_in: 540, tokens_out: 160,
+      cost_estimate: 0.000177, lang: "ka", phase: "discovery",
+    },
+  },
+  {
+    id: "evt-demo-21",
+    created_at: "2026-07-15T11:25:40.000Z",
+    type: "chat_reply",
+    ref_id: "demo-chat-dropped-1",
+    payload: {
+      model: "gpt-4o-mini", latency_ms: 2050, tokens_in: 900, tokens_out: 230,
+      cost_estimate: 0.000273, lang: "ka", phase: "advice",
+    },
   },
 ];
