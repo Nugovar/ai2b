@@ -10,6 +10,7 @@ import { getDict, type Lang } from "@/lib/i18n";
 import { MARKETING_ONLY } from "@/lib/config";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
 import { saveChatSession, isValidSessionId } from "@/lib/chatStore";
+import { logAiEvent, estimateCost } from "@/lib/aiEvents";
 import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
 import type {
   ChatCompletionContentPart,
@@ -196,6 +197,7 @@ export async function POST(req: NextRequest) {
       convo.map((m, i) => toOpenAIMessage(m, i === lastUserIdx))
     );
 
+    const t0 = Date.now();
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0.6,
@@ -209,6 +211,8 @@ export async function POST(req: NextRequest) {
         ...history,
       ],
     });
+    const latencyMs = Date.now() - t0;
+    const usage = completion.usage;
 
     const raw = completion.choices[0]?.message?.content ?? "";
 
@@ -233,10 +237,16 @@ export async function POST(req: NextRequest) {
 
     // The API call SUCCEEDED but the model returned no usable text. This is NOT
     // a connection failure - log it distinctly and degrade gracefully.
-    if (!reply) {
+    const isEmptyCompletion = !reply;
+    if (isEmptyCompletion) {
       console.warn(
         `[api/chat] empty reply after parse (model returned no 'reply'). rawLen=${raw.length}`
       );
+      await logAiEvent({
+        type: "chat_error",
+        ref_id: isValidSessionId(body.sessionId) ? body.sessionId : undefined,
+        payload: { error_kind: "empty_completion", message: `rawLen=${raw.length}`, model: "gpt-4o-mini" },
+      });
       reply = dict.chat.errorConnection;
     }
 
@@ -251,16 +261,56 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Log the AI Activity feed entry for this turn — a successful reply, or
+    // (if we already logged empty_completion above) nothing further.
+    if (!isEmptyCompletion) {
+      await logAiEvent({
+        type: "chat_reply",
+        ref_id: isValidSessionId(body.sessionId) ? body.sessionId : undefined,
+        payload: {
+          model: "gpt-4o-mini",
+          latency_ms: latencyMs,
+          tokens_in: usage?.prompt_tokens ?? null,
+          tokens_out: usage?.completion_tokens ?? null,
+          cost_estimate: usage ? estimateCost(usage.prompt_tokens, usage.completion_tokens) : null,
+          lang,
+          phase: control.phase,
+        },
+      });
+    }
+
     return NextResponse.json<ChatApiResponse>({ reply, control }, { status: 200 });
   } catch (err) {
     // Differentiate the failure so we can see WHY (rate limit vs timeout vs
     // connection vs auth) instead of one opaque blob.
     logChatError(err);
+    await logAiEvent({
+      type: "chat_error",
+      ref_id: isValidSessionId(body.sessionId) ? body.sessionId : undefined,
+      payload: {
+        error_kind: classifyChatErrorKind(err),
+        message: err instanceof Error ? err.message : String(err),
+        model: "gpt-4o-mini",
+      },
+    });
     return NextResponse.json<ChatApiResponse>(
       { reply: dict.chat.errorConnection, control: { ...DEFAULT_CONTROL } },
       { status: 200 }
     );
   }
+}
+
+// Classifies an OpenAI SDK error by status/name. Shared by the console log
+// below and the AI Activity Log's chat_error event.
+function classifyChatErrorKind(err: unknown): string {
+  const e = err as { name?: string; status?: number };
+  if (e?.name === "APIConnectionTimeoutError") return "timeout";
+  if (e?.name === "APIConnectionError") return "connection";
+  if (e?.status === 429) return "rate_limit";
+  if (e?.status === 401) return "auth";
+  if (e?.status === 400) return "bad_request";
+  if (typeof e?.status === "number" && e.status >= 500) return "openai_5xx";
+  return "unknown";
 }
 
 // Structured, greppable error log. Classifies OpenAI SDK errors by status/name.
@@ -281,14 +331,7 @@ function logChatError(err: unknown): void {
     status === 409 ||
     status === 429 ||
     (typeof status === "number" && status >= 500);
-
-  let kind = "unknown";
-  if (name === "APIConnectionTimeoutError") kind = "timeout";
-  else if (name === "APIConnectionError") kind = "connection";
-  else if (status === 429) kind = "rate_limit";
-  else if (status === 401) kind = "auth";
-  else if (status === 400) kind = "bad_request";
-  else if (typeof status === "number" && status >= 500) kind = "openai_5xx";
+  const kind = classifyChatErrorKind(err);
 
   console.error(
     `[api/chat] OpenAI call failed kind=${kind} transient=${transient} ` +
