@@ -612,6 +612,36 @@ function LeadDetail({
               </div>
             </div>
           )}
+
+          {lead.deliverables && lead.deliverables.length > 0 && (
+            <div>
+              <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-green-600">{A.detail.deliverables}</h4>
+              <div className="flex flex-wrap gap-2">
+                {lead.deliverables.map((a, i) =>
+                  a.isImage ? (
+                    <a key={i} href={a.url} target="_blank" rel="noopener noreferrer" title={a.name}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={a.url} alt={a.name} className="h-16 w-16 rounded-lg object-cover ring-1 ring-green-300" />
+                    </a>
+                  ) : (
+                    <a
+                      key={i}
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={a.name}
+                      className="flex max-w-[12rem] items-center gap-1.5 rounded-lg border border-green-200 bg-green-50/50 px-2 py-1.5 text-xs text-brand-dark shadow-sm"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-green-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6" />
+                      </svg>
+                      <span className="truncate">{a.name}</span>
+                    </a>
+                  )
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

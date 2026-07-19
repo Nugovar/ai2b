@@ -30,8 +30,10 @@ const timeoutFetch: typeof fetch = (input, init) => {
   return fetch(input, { ...init, signal: init?.signal ?? signal });
 };
 
-// Returns a privileged client, or null if env vars are missing (demo fallback).
+// Returns a privileged client, or null if env vars are missing (demo fallback)
+// or DEMO_MODE is on (then the app runs entirely on the seeded in-memory store).
 export function getSupabaseAdmin(): SupabaseClient | null {
+  if (process.env.AI2B_DEMO === "1") return null;
   if (!url || !secretKey) return null;
   return createClient(url, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },

@@ -106,7 +106,20 @@ interface AdminDict {
   sourceMemory: string;
   sourceSeed: string;
   unprotected: string;
-  tabs: { leads: string; experts: string; metrics: string };
+  tabs: { leads: string; experts: string; metrics: string; chats: string };
+  chatsSubtitle: string;
+  chats: {
+    total: string;
+    empty: string;
+    emptyHint: string;
+    messages: string;
+    leadYes: string;
+    leadNo: string;
+    phases: Record<string, string>;
+    view: string;
+    hide: string;
+    updated: string;
+  };
   logout: string;
   amount: string;
   outcome: { label: string; pending: string; won: string; lost: string };
@@ -137,7 +150,7 @@ interface AdminDict {
     matchedExperts: string; context: string; advice: string; transcript: string;
     noContext: string; adviceNot: string; transcriptNot: string; noMatches: string;
     topMatch: string; phase2: string; years: string; avg: string; ai: string;
-    tiePrefix: string; attachments: string;
+    tiePrefix: string; attachments: string; deliverables: string;
   };
   assign: {
     title: string; assignBtn: string; assigned: string; assignedTo: string;
@@ -147,10 +160,22 @@ interface AdminDict {
   // tie-break criterion labels keyed by machine name from lib/match.ts
   tieBy: Record<string, string>;
   experts: {
-    th: { expert: string; aiSkill: string; skills: string; rating: string; status: string; tools: string; internal: string };
+    th: { expert: string; aiSkill: string; skills: string; rating: string; status: string; tools: string; internal: string; portal: string };
     filters: { category: string; seniority: string; availability: string; sortBy: string; all: string; ratingOpt: string; aiSkillOpt: string; experienceOpt: string };
     available: string;
     busy: string;
+    portal: {
+      email: string;
+      emailPh: string;
+      code: string;
+      noCode: string;
+      generate: string;
+      regenerate: string;
+      copy: string;
+      copied: string;
+      saved: string;
+      hint: string;
+    };
   };
   seniority: Record<string, string>;
   slots: Record<string, string>;
@@ -197,7 +222,7 @@ const ka: Dict = {
   services: {
     title: "სერვისები",
     subtitle: "ხუთი ძირითადი მიმართულება, ერთ სივრცეში. აღწერე საჭიროება და მოვძებნით შესაბამის ექსპერტს.",
-    subtitleMarketing: "ამჟამად ფოკუსირებული ვართ მარკეტინგზე. დანარჩენი მიმართულებები მალე დაემატება.",
+    subtitleMarketing: "ციფრული მარკეტინგი ერთ ფანჯარაში — აღწერე საჭიროება და მიიღე გადაწყვეტა.",
     comingSoon: "მალე",
     items: [
       { title: "მარკეტინგი", description: "ციფრული რეკლამა, სოციალური ქსელები, კონტენტი და რეელსები. სტრატეგია, რომელიც ზრდის გაყიდვებს." },
@@ -283,7 +308,20 @@ const ka: Dict = {
     sourceMemory: "მეხსიერება (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ პანელი დაუცველია (ADMIN_PASSWORD არ არის დაყენებული)",
-    tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები" },
+    tabs: { leads: "ლიდები", experts: "ექსპერტები", metrics: "მეტრიკები", chats: "ჩატები" },
+    chatsSubtitle: "ყველა საუბარი — კონვერტირებული და მიტოვებული",
+    chats: {
+      total: "სულ",
+      empty: "ჩატები ჯერ არ არის",
+      emptyHint: "ყველა საუბარი ავტომატურად ინახება აქ — ლიდად ქცეულიც და მიტოვებულიც.",
+      messages: "შეტყობინება",
+      leadYes: "ლიდი აღებულია",
+      leadNo: "ლიდის გარეშე",
+      phases: { discovery: "გაცნობა", advice: "რჩევა", conversion: "კონვერსია" },
+      view: "ნახვა",
+      hide: "დახურვა",
+      updated: "ბოლო აქტივობა",
+    },
     logout: "გასვლა",
     amount: "თანხა (₾)",
     outcome: { label: "შედეგი", pending: "მიმდინარე", won: "მოგებული", lost: "წაგებული" },
@@ -355,7 +393,7 @@ const ka: Dict = {
       avg: "საშ.",
       ai: "AI",
       tiePrefix: "ტოლი ქულა → გადაწყვიტა:",
-      attachments: "მიმაგრებული ფაილები",
+      attachments: "მიმაგრებული ფაილები", deliverables: "ექსპერტის ნამუშევარი",
     },
     assign: {
       title: "მინიჭება და გადახდა",
@@ -378,7 +416,7 @@ const ka: Dict = {
     experts: {
       th: {
         expert: "ექსპერტი", aiSkill: "AI უნარი", skills: "უნარები (0-10)", rating: "რეიტინგი",
-        status: "სტატუსი", tools: "ხელსაწყოები", internal: "შიდა (admin only)",
+        status: "სტატუსი", tools: "ხელსაწყოები", internal: "შიდა (admin only)", portal: "პორტალის შესვლა",
       },
       filters: {
         category: "კატეგორია", seniority: "სენიორობა", availability: "ხელმისაწვდომობა", sortBy: "დახარისხება",
@@ -386,6 +424,11 @@ const ka: Dict = {
       },
       available: "თავისუფალი",
       busy: "დაკავებული",
+      portal: {
+        email: "ელფოსტა", emailPh: "ელფოსტა შესვლისთვის", code: "კოდი", noCode: "არ არის",
+        generate: "კოდის გენერაცია", regenerate: "ახალი კოდი", copy: "კოპირება", copied: "დაკოპირდა ✓",
+        saved: "შენახულია ✓", hint: "ექსპერტი ამ ელფოსტითა და კოდით შედის /expert-ზე.",
+      },
     },
     seniority: { junior: "ჯუნიორი", middle: "მიდლი", senior: "სენიორი" },
     slots: {
@@ -440,7 +483,7 @@ const en: Dict = {
   services: {
     title: "Services",
     subtitle: "Five core directions in one place. Describe your need and we'll match you with the right expert.",
-    subtitleMarketing: "We're focused on marketing right now. The other directions are coming soon.",
+    subtitleMarketing: "Digital marketing in one place — describe your need and get a solution.",
     comingSoon: "Coming soon",
     items: [
       { title: "Marketing", description: "Digital ads, social media, content and reels. A strategy that grows your sales." },
@@ -526,7 +569,20 @@ const en: Dict = {
     sourceMemory: "in-memory (demo)",
     sourceSeed: "seed (demo)",
     unprotected: "⚠ Panel is unprotected (ADMIN_PASSWORD not set)",
-    tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics" },
+    tabs: { leads: "Leads", experts: "Experts", metrics: "Metrics", chats: "Chats" },
+    chatsSubtitle: "Every conversation — converted and dropped",
+    chats: {
+      total: "Total",
+      empty: "No chats yet",
+      emptyHint: "Every conversation is saved here automatically — converted to a lead or not.",
+      messages: "messages",
+      leadYes: "Lead captured",
+      leadNo: "No lead",
+      phases: { discovery: "Discovery", advice: "Advice", conversion: "Conversion" },
+      view: "View",
+      hide: "Hide",
+      updated: "Last activity",
+    },
     logout: "Log out",
     amount: "Amount (GEL)",
     outcome: { label: "Outcome", pending: "Pending", won: "Won", lost: "Lost" },
@@ -598,7 +654,7 @@ const en: Dict = {
       avg: "avg",
       ai: "AI",
       tiePrefix: "tie on score → decided by:",
-      attachments: "Attached files",
+      attachments: "Attached files", deliverables: "Expert deliverables",
     },
     assign: {
       title: "Assignment & payment",
@@ -621,7 +677,7 @@ const en: Dict = {
     experts: {
       th: {
         expert: "Expert", aiSkill: "AI skill", skills: "Skills (0-10)", rating: "Rating",
-        status: "Status", tools: "Tools", internal: "Internal (admin only)",
+        status: "Status", tools: "Tools", internal: "Internal (admin only)", portal: "Portal login",
       },
       filters: {
         category: "Category", seniority: "Seniority", availability: "Availability", sortBy: "Sort by",
@@ -629,6 +685,11 @@ const en: Dict = {
       },
       available: "Available",
       busy: "Busy",
+      portal: {
+        email: "Email", emailPh: "email for login", code: "Code", noCode: "not set",
+        generate: "Generate code", regenerate: "New code", copy: "Copy", copied: "Copied ✓",
+        saved: "Saved ✓", hint: "The expert signs in at /expert with this email + code.",
+      },
     },
     seniority: { junior: "Junior", middle: "Middle", senior: "Senior" },
     slots: {

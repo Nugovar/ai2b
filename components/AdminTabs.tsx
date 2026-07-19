@@ -4,12 +4,17 @@ import { useApp } from "@/components/ChatProvider";
 
 // Admin tab navigation (Leads / Experts) + logout. Auth is via the httpOnly
 // admin cookie, so no key is threaded through links anymore.
-export default function AdminTabs({ active }: { active: "leads" | "experts" | "metrics" }) {
+export default function AdminTabs({
+  active,
+}: {
+  active: "leads" | "experts" | "metrics" | "chats";
+}) {
   const { t } = useApp();
   const tabs = [
     { id: "leads" as const, label: t.admin.tabs.leads, href: "/admin" },
     { id: "experts" as const, label: t.admin.tabs.experts, href: "/admin/experts" },
     { id: "metrics" as const, label: t.admin.tabs.metrics, href: "/admin/metrics" },
+    { id: "chats" as const, label: t.admin.tabs.chats, href: "/admin/chats" },
   ];
 
   async function logout() {

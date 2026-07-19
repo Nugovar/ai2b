@@ -17,3 +17,10 @@
 // To restore the full 5-category experience: set MARKETING_ONLY = false.
 // ============================================================================
 export const MARKETING_ONLY = true;
+
+// DEMO_MODE — set AI2B_DEMO=1 to run a fully self-contained walkthrough build:
+// the server IGNORES Supabase (getSupabaseAdmin returns null) and uses the
+// in-memory store seeded with lib/demoSeed, so every admin feature works and is
+// pre-populated with realistic data. Off by default; production never sets it,
+// so real data is never affected. Used by the `ai2b-demo` launch config.
+export const DEMO_MODE = process.env.AI2B_DEMO === "1";

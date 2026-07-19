@@ -9,6 +9,7 @@ import { parseControl, normalizeControl } from "@/lib/parseControl";
 import { getDict, type Lang } from "@/lib/i18n";
 import { MARKETING_ONLY } from "@/lib/config";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
+import { saveChatSession, isValidSessionId } from "@/lib/chatStore";
 import type { ChatApiResponse, ChatControl, ChatMessage } from "@/lib/types";
 import type {
   ChatCompletionContentPart,
@@ -38,7 +39,7 @@ const MARKETING_SCOPE =
   "ამ ეტაპზე AI2Business ფოკუსირებულია მხოლოდ მარკეტინგზე. დაეხმარე მხოლოდ მარკეტინგულ თემებში: " +
   "სოციალური ქსელების მართვა, რეკლამა (Meta/Google), კონტენტი/რეელსები, მარკეტინგ-სტრატეგია, ბრენდინგი/პოზიციონირება, სარეკლამო კამპანიები. " +
   "თუ მომხმარებელი ითხოვს არა-მარკეტინგულ საჭიროებას (იურიდიული, დეველოპმენტი/ვებსაიტი, წმინდა დიზაინი მარკეტინგთან კავშირის გარეშე, ბიზნეს-კონსალტინგი), " +
-  "თბილად და მოკლედ უთხარი, რომ AI2Business ამჟამად მარკეტინგზეა ფოკუსირებული და ის მიმართულებები მალე დაემატება, შემდეგ კი დააბრუნე საუბარი იმაზე, " +
+  "თბილად და მოკლედ უთხარი, რომ AI2Business მარკეტინგზეა სპეციალიზებული, შემდეგ კი დააბრუნე საუბარი იმაზე, " +
   "თუ როგორ შეგიძლია დაეხმარო მარკეტინგში. category ასეთ შემთხვევებში დააყენე \"მარკეტინგი\". " +
   "შეინარჩუნე იგივე ლოგიკა: ჭკვიანი რელევანტური კითხვები -> მორგებული რჩევა -> ექსპერტის შეთავაზება -> ლიდის აღება.";
 
@@ -142,6 +143,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
     messages?: ChatMessage[];
     lang?: Lang;
+    sessionId?: string;
   };
   const lang: Lang = body.lang === "en" ? "en" : "ka";
   const dict = getDict(lang);
@@ -236,6 +238,17 @@ export async function POST(req: NextRequest) {
         `[api/chat] empty reply after parse (model returned no 'reply'). rawLen=${raw.length}`
       );
       reply = dict.chat.errorConnection;
+    }
+
+    // Persist the session (every conversation, converted or not — the context
+    // moat + lost-lead recovery). Awaited so serverless can't kill the write;
+    // never throws, so a storage hiccup can't fail the chat.
+    if (isValidSessionId(body.sessionId)) {
+      await saveChatSession(body.sessionId, {
+        messages: [...messages, { role: "assistant", content: reply }],
+        lang,
+        phase: control.phase,
+      });
     }
 
     return NextResponse.json<ChatApiResponse>({ reply, control }, { status: 200 });

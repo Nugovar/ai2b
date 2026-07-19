@@ -35,6 +35,7 @@ function safeEqual(a: string, b: string): boolean {
 
 // In production the panel is always considered protected (banner never shows).
 export function isAdminProtected(): boolean {
+  if (process.env.AI2B_DEMO === "1") return true; // demo: clean panel, no banner
   if (isProd) return true;
   return Boolean(process.env.ADMIN_PASSWORD);
 }
@@ -55,6 +56,9 @@ export function adminCookieToken(): string {
 // Authorize the current request by reading the httpOnly admin cookie.
 // Call from server components (admin pages) and admin route handlers.
 export function isAdminRequestAuthorized(): boolean {
+  // Demo build: the panel is open (localhost walkthrough, no real data). Never
+  // set in production, so this can't loosen a real deployment.
+  if (process.env.AI2B_DEMO === "1") return true;
   const secret = process.env.ADMIN_PASSWORD;
   if (!secret) {
     // No password configured: open in dev only; LOCKED in production.

@@ -3,7 +3,8 @@
 // kept in a module-level array so the demo never crashes. A clear console
 // warning is logged when the fallback is used.
 import { getSupabaseAdmin, isSupabaseServerConfigured } from "@/lib/supabaseServer";
-import type { Lead, PaymentStatus, OutcomeStatus, AiDraftStatus } from "@/lib/types";
+import { DEMO_LEADS } from "@/lib/demoSeed";
+import type { Lead, PaymentStatus, OutcomeStatus, AiDraftStatus, Attachment } from "@/lib/types";
 
 export interface StoredLead extends Lead {
   id: string;
@@ -19,6 +20,13 @@ export type LeadStatus = "new" | "in_progress" | "done";
 // this, a lead written by /api/lead might not be visible to the /admin page.
 const globalStore = globalThis as unknown as { __ai2bMemoryLeads?: StoredLead[] };
 const memoryLeads: StoredLead[] = (globalStore.__ai2bMemoryLeads ??= []);
+
+// Demo mode: pre-populate the empty in-memory store once with realistic leads
+// so the admin panel is fully populated for a walkthrough. Length-guarded so
+// HMR / repeated imports never duplicate. (Never runs unless AI2B_DEMO=1.)
+if (process.env.AI2B_DEMO === "1" && memoryLeads.length === 0) {
+  memoryLeads.push(...DEMO_LEADS.map((l) => ({ ...l })));
+}
 
 export async function saveLead(
   lead: Lead
@@ -76,6 +84,171 @@ export async function saveLead(
 // Exposed for a potential admin/debug view of in-memory leads.
 export function getMemoryLeads(): StoredLead[] {
   return memoryLeads;
+}
+
+// ---------------------------------------------------------------------------
+// Expert-portal views. An expert sees only the TASK — never the client's
+// identity/contact or the raw transcript — so the platform stays in the middle
+// (anti-disintermediation). This is the expert-safe projection of a lead.
+// ---------------------------------------------------------------------------
+export interface ExpertTask {
+  id: string;
+  created_at: string;
+  status: string;
+  business_type?: string;
+  category?: string;
+  required_skills?: string[];
+  ai_relevant?: boolean;
+  summary?: string;
+  advice?: string; // the AI "draft" the expert executes against
+  slots?: Record<string, string>;
+  attachments?: Attachment[];
+  deliverables?: Attachment[]; // the expert's own uploaded work
+  ai_draft_status?: AiDraftStatus; // current rating (so the UI reflects state)
+}
+
+// Strip everything that could identify or route around the client.
+export function toExpertTask(l: StoredLead): ExpertTask {
+  return {
+    id: l.id,
+    created_at: l.created_at,
+    status: l.status,
+    business_type: l.business_type,
+    category: l.category,
+    required_skills: l.required_skills,
+    ai_relevant: l.ai_relevant,
+    summary: l.summary,
+    advice: l.advice,
+    slots: l.slots,
+    attachments: l.attachments,
+    deliverables: l.deliverables,
+    ai_draft_status: l.ai_draft_status,
+  };
+}
+
+// List the tasks assigned to one expert, newest first. Server-only; the caller
+// must have verified the expert's auth cookie first.
+export async function listLeadsForExpert(
+  expertId: string
+): Promise<{ tasks: ExpertTask[]; storage: "supabase" | "memory" }> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { data, error } = await admin
+        .from("leads")
+        .select("*")
+        .eq("assigned_expert_id", expertId)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return { tasks: ((data ?? []) as StoredLead[]).map(toExpertTask), storage: "supabase" };
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE listing expert tasks -> IN-MEMORY fallback. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
+  const mine = memoryLeads
+    .filter((l) => l.assigned_expert_id === expertId)
+    .reverse()
+    .map(toExpertTask);
+  return { tasks: mine, storage: "memory" };
+}
+
+// Fetch a single expert-safe task, but ONLY if it belongs to this expert.
+// Returns null if the task doesn't exist or isn't assigned to them (prevents an
+// expert from reading another expert's task by guessing an id).
+export async function getExpertTask(
+  expertId: string,
+  taskId: string
+): Promise<ExpertTask | null> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { data, error } = await admin
+        .from("leads")
+        .select("*")
+        .eq("id", taskId)
+        .eq("assigned_expert_id", expertId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data ? toExpertTask(data as StoredLead) : null;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE fetching expert task. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
+  const l = memoryLeads.find((x) => x.id === taskId && x.assigned_expert_id === expertId);
+  return l ? toExpertTask(l) : null;
+}
+
+// Ownership check for write paths (submit). True only if the task is assigned
+// to this expert. Server-only.
+export async function expertOwnsTask(expertId: string, taskId: string): Promise<boolean> {
+  return (await getExpertTask(expertId, taskId)) !== null;
+}
+
+// ---------------------------------------------------------------------------
+// Client (business) portal views. The client sees THEIR OWN requests: status,
+// advice, payment, deliverables — but NEVER the expert's identity (the
+// platform stays in the middle; experts are anonymous-but-accountable).
+// ---------------------------------------------------------------------------
+export interface ClientRequest {
+  id: string;
+  created_at: string;
+  status: string;
+  business_type?: string;
+  category?: string;
+  summary?: string;
+  advice?: string;
+  expert_assigned: boolean; // anonymized — just "an expert is on it"
+  payment_status?: PaymentStatus;
+  amount?: number;
+  deliverables?: Attachment[];
+}
+
+export function toClientRequest(l: StoredLead): ClientRequest {
+  return {
+    id: l.id,
+    created_at: l.created_at,
+    status: l.status,
+    business_type: l.business_type,
+    category: l.category,
+    summary: l.summary,
+    advice: l.advice,
+    expert_assigned: Boolean(l.assigned_expert_id),
+    payment_status: l.payment_status,
+    amount: l.amount,
+    deliverables: l.deliverables,
+  };
+}
+
+// All leads left with a given email (case-insensitive). Used by client-portal
+// auth + the client's own request list. Server-only.
+export async function listLeadsByEmail(email: string): Promise<StoredLead[]> {
+  const e = (email || "").trim().toLowerCase();
+  if (!e) return [];
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      // ilike with no wildcards = exact match, case-insensitive.
+      const { data, error } = await admin
+        .from("leads")
+        .select("*")
+        .ilike("email", e)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as StoredLead[];
+    } catch (err) {
+      console.error(
+        "[leadStore] DB UNREACHABLE listing client leads -> IN-MEMORY fallback. reason:",
+        err instanceof Error ? err.message : String(err)
+      );
+    }
+  }
+  return memoryLeads.filter((l) => (l.email || "").trim().toLowerCase() === e).reverse();
 }
 
 // List all leads, newest first. Reads from Supabase when configured, otherwise
@@ -249,6 +422,34 @@ export async function updateLeadOutcome(
   if (lead) {
     if (fields.outcome) lead.outcome = fields.outcome;
     if (fields.ai_draft_status) lead.ai_draft_status = fields.ai_draft_status;
+    return true;
+  }
+  return false;
+}
+
+// Set a lead's expert deliverables (the finished-work files). Replaces the
+// array. Returns true on success. Server-only; caller must verify ownership.
+export async function updateLeadDeliverables(
+  id: string,
+  deliverables: Attachment[]
+): Promise<boolean> {
+  const admin = getSupabaseAdmin();
+  if (admin && isSupabaseServerConfigured) {
+    try {
+      const { error } = await admin.from("leads").update({ deliverables }).eq("id", id);
+      if (error) throw new Error(error.message);
+      return true;
+    } catch (e) {
+      console.error(
+        "[leadStore] DB UNREACHABLE updating deliverables. reason:",
+        e instanceof Error ? e.message : String(e)
+      );
+      return false;
+    }
+  }
+  const lead = memoryLeads.find((l) => l.id === id);
+  if (lead) {
+    lead.deliverables = deliverables;
     return true;
   }
   return false;

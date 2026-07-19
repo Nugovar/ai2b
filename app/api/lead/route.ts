@@ -2,6 +2,7 @@
 // the lead store (Supabase if configured, in-memory fallback otherwise).
 import { NextRequest, NextResponse } from "next/server";
 import { saveLead } from "@/lib/leadStore";
+import { markChatLeadCaptured, isValidSessionId } from "@/lib/chatStore";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
 import type { Lead } from "@/lib/types";
 
@@ -76,6 +77,12 @@ export async function POST(req: NextRequest) {
       ai_relevant: body.ai_relevant,
       attachments,
     });
+
+    // Flag the originating chat session as converted (best-effort).
+    const sessionId = (body as { sessionId?: unknown }).sessionId;
+    if (isValidSessionId(sessionId)) {
+      await markChatLeadCaptured(sessionId);
+    }
 
     return NextResponse.json({ ok: true, id: result.id, storage: result.storage }, { status: 200 });
   } catch (err) {

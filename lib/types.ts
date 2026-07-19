@@ -61,6 +61,9 @@ export interface Lead {
   conversation?: ChatMessage[];
   // All files/photos the user attached anywhere in the conversation.
   attachments?: Attachment[];
+  // Files the assigned EXPERT uploaded as the finished work (expert portal).
+  // Distinct from `attachments` (client-supplied inputs) — these are outputs.
+  deliverables?: Attachment[];
   // Expert-matching task signal captured with the lead (drives admin ranking).
   category?: string;
   required_skills?: string[];
@@ -117,10 +120,15 @@ export interface Expert {
   phone?: string;
   social?: string;
   notes?: string;
+  // Expert-portal login (admin-provisioned). `login_code` is the per-expert
+  // secret the expert enters with their email to sign in; both are INTERNAL and
+  // never leave the server / never appear in any client/chat payload.
+  email?: string;
+  login_code?: string;
 }
 
-// Client/chat-safe expert shape: internal contact fields stripped.
-export type PublicExpert = Omit<Expert, "phone" | "social" | "notes">;
+// Client/chat-safe expert shape: internal contact + login fields stripped.
+export type PublicExpert = Omit<Expert, "phone" | "social" | "notes" | "email" | "login_code">;
 
 // Designer skill taxonomy (the keys used in skill_scores for this category).
 export const DESIGNER_SKILLS = [

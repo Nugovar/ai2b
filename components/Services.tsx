@@ -31,42 +31,29 @@ export default function Services() {
           </p>
         </div>
 
-        <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {t.services.items.map((service, i) => {
-            // Marketing is index 0. When MARKETING_ONLY, the other categories are
-            // shown but clearly marked "coming soon" (dimmed, non-interactive).
-            const soon = MARKETING_ONLY && i !== 0;
-            const active = MARKETING_ONLY && i === 0;
-            return (
-              <div
-                key={i}
-                className={`group relative rounded-2xl border bg-white p-6 shadow-sm transition-all ${
-                  soon
-                    ? "border-gray-100 opacity-60"
-                    : "border-gray-100 hover:-translate-y-1 hover:shadow-lg"
-                } ${active ? "ring-2 ring-brand-red/30" : ""}`}
-              >
-                {soon && (
-                  <span className="absolute right-3 top-3 rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                    {t.services.comingSoon}
-                  </span>
-                )}
-                <div
-                  className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl transition-colors ${
-                    soon
-                      ? "bg-gray-100 text-gray-400"
-                      : "bg-brand-red/10 text-brand-red group-hover:bg-brand-red group-hover:text-white"
-                  }`}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6">
-                    <path strokeLinecap="round" strokeLinejoin="round" d={ICONS[i]} />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-bold text-brand-dark">{service.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-600">{service.description}</p>
+        <div
+          className={`mt-16 grid gap-6 ${
+            MARKETING_ONLY ? "mx-auto max-w-4xl sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"
+          }`}
+        >
+          {/* MARKETING_ONLY: render ONLY the marketing card (index 0) — the other
+              directions are removed from the public site entirely. */}
+          {(MARKETING_ONLY ? t.services.items.slice(0, 1) : t.services.items).map((service, i) => (
+            <div
+              key={i}
+              className={`group relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg ${
+                MARKETING_ONLY ? "ring-2 ring-brand-red/30" : ""
+              }`}
+            >
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-red/10 text-brand-red transition-colors group-hover:bg-brand-red group-hover:text-white">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d={ICONS[i]} />
+                </svg>
               </div>
-            );
-          })}
+              <h3 className="text-lg font-bold text-brand-dark">{service.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">{service.description}</p>
+            </div>
+          ))}
 
           {/* CTA card */}
           <div className="flex flex-col justify-center rounded-2xl bg-brand-dark p-6 text-white shadow-sm">
